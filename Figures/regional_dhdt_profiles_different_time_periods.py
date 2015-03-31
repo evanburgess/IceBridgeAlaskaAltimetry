@@ -1,0 +1,300 @@
+# -*- coding: utf-8 -*-
+#import xlrd
+import re
+import unicodedata
+import numpy as np
+import datetime as dtm
+import os
+import glob
+import simplekml as kml
+import subprocess
+import matplotlib.pyplot as plt
+from osgeo import gdal
+from types import *
+import sys
+import time
+# from mpl_toolkits.basemap import Basemap
+from matplotlib.collections import PatchCollection
+from osgeo.gdalnumeric import *
+import matplotlib.path as mpath
+import matplotlib.patches as mpatches
+import matplotlib.mlab as mlab
+import scipy.misc
+import matplotlib
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
+import scipy.stats as stats
+import scipy.stats.mstats as mstats
+from numpy.ma import MaskedArray, masked, nomask
+import numpy.ma as ma
+import pickle
+from itertools import product
+
+import ConfigParser
+
+cfg = ConfigParser.ConfigParser()
+cfg.read(os.path.dirname(__file__)+'/setup.cfg')
+sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
+
+from Altimetry.Interface import *
+
+def partition_dataset(*args,**kwargs):
+
+    for k in kwargs:
+        if k not in ['interval_min','interval_max','applytoall']:raise "ERROR: Unidentified keyword present"
+    lamb = [] 
+    userwheres=[]
+    userwheres2=[]
+    notused = []
+    notused2 = []
+    zones=[]
+    if 'interval_max' in kwargs.keys():intervalsmax = kwargs['interval_max']
+    else:intervalsmax=30
+    
+    if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
+    else:min_interval=5
+    
+    from itertools import product
+    for items in product(*list(args)):
+        userwhere =  " AND ".join(items)
+
+        if kwargs:
+            if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
+            userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
+            
+        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
+        if type(out)!=NoneType:
+            userwheres2.append(userwhere2)
+            userwheres.append(userwhere)
+            lamb.append(out)
+            lamb[-1].fix_terminus()
+            lamb[-1].remove_upper_extrap()
+            lamb[-1].normalize_elevation()
+            lamb[-1].calc_dz_stats()
+            lamb[-1].extend_upper_extrap()
+            lamb[-1].calc_mb()
+        else:
+            notused.append(userwhere)
+            notused2.append(userwhere2)
+    return lamb,userwheres2,notused2,userwheres,notused
+    #return 1,2,3
+
+    
+def plotthis(data):
+    fig = plt.figure(figsize=[10,8])
+    ax = fig.add_axes([0.11,0.31,0.74,0.6])
+    for line in data.normdz:pl1 = ax.plot(data.norme, line,'r-',alpha=0.2)
+    pl1 = ax.plot(data.norme, data.dzs_mean,'k-')
+    pl2 = ax.plot(data.norme, data.dzs_mean-data.dzs_sem,'k--',data.norme, data.dzs_mean+data.dzs_sem,'k--')    
+    plt.show()
+    
+def partitionbox(axes,data,center,totalwidth,spacing,cchoice,boxwidth=None,showfliers=True):
+    
+    if type(boxwidth)==NoneType:boxwidth = (totalwidth-spacing*(len(data)-1))/len(data)
+    
+    if len(data)>1:positions = N.linspace(center-totalwidth/2+boxwidth/2,center+totalwidth/2-boxwidth/2,len(data))
+    else:positions=center
+    
+    if showfliers:fly = 'o'
+    else:fly=''
+    box = axes.boxplot(data,positions=positions,widths=boxwidth,sym=fly,patch_artist=True,whis=[5,95])
+    
+    for clr,bx in zip(cchoice,box['boxes']):
+        bx.set_facecolor(clr)
+        bx.set_edgecolor(clr)
+    for bx in box['medians']:
+        bx.set_color(color='k')
+        bx.set_lw(1)
+    for i,bx in enumerate(box['caps']):
+        #bx.set_color(color=N.repeat(colorlist,2,axis=0)[i])
+        bx.set_lw(0)
+    for clr,bx in zip([x1 for pair in zip(cchoice,cchoice) for x1 in pair],box['whiskers']):
+        bx.set_color(color=clr)
+        bx.set_ls('-')
+        bx.set_lw(2)
+    
+    if showfliers:
+        for clr,bx in zip(cchoice,box['fliers']):
+            bx.set_markerfacecolor(clr)
+            bx.set_markeredgecolor(clr)
+            bx.set_markeredgewidth(0.5)
+            bx.set_markersize(3)
+            bx.set_alpha(0.5)
+
+
+                
+    return box
+
+def set_colors(allwhere,condition,usethis,colors=None):
+    
+    if type(colors)==NoneType:colors=N.repeat('0.5',len(allwhere))
+    
+    a=[]
+    for i,boo in enumerate([re.search(condition,i)!=None for i in allwhere]):
+
+        if boo:a.append(usethis)
+        else:a.append(colors[i])
+    return a
+
+
+    
+plot_hist=False
+
+user_where=["FLOOR((ergi.glactype::real-9000)/100)=0 AND gltype.surge='f'","FLOOR((ergi.glactype::real-9000)/100)=1 AND glnames.name!='Columbia'","FLOOR((ergi.glactype::real-9000)/100)=2 AND glnames.name!='Bering' AND glnames.name!='YakutatEast' AND glnames.name!='YakutatWest' AND gltype.surge='f'","gltype.surge='f'"]
+#user_where=["FLOOR((ergi.glactype::real-9000)/100)=0 AND gltype.surge='f'","FLOOR((ergi.glactype::real-9000)/100)=1 AND glnames.name!='Columbia'","FLOOR((ergi.glactype::real-9000)/100)=2 AND glnames.name!='Bering' AND glnames.name!='YakutatWest' AND glnames.name!='YakutatEast' AND gltype.surge='f'"]
+outroot = ["Tidewater","Lake","Land","All"]
+color = ['k','g','r','r']
+min_interval=5
+intervalsmax=30
+labels = ['<=3yr intervals','3-5 yrs','5-10yrs','>=10yrs','>=3yrs','>=5yrs','Before 2003','After 2002']
+shpfiles = ['intervals_less3yr','intervals_3_5yrs','intervals5_10yrs','intervals_more10yrs','intervals_more3yrs','intervals_more5yrs','Before2003','After2002']
+div1 = '2000-01-01'
+i=0
+
+
+titles=[]
+outputs=[]
+allwheres=[]
+
+runall=True
+
+if runall:    
+
+        ###Separating By DATE
+    ##################################################################################
+    titles.append("Split in 2000")
+    types = ["lamb.date2<'2001-1-1'","lamb.date1>'2000-1-1'"]
+    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","ergi.gltype=0","ergi.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
+    outputs.append(lamb)  
+    allwheres.append(whereswo)
+
+        ###Separating By DATE
+    ##################################################################################
+    titles.append("Split in 2004")
+    types = ["lamb.date2<'2005-1-1'","lamb.date1>'2004-1-1'"]
+    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","ergi.gltype=0","ergi.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
+    outputs.append(lamb)  
+    allwheres.append(whereswo)
+                     
+    pickle.dump([outputs,titles,allwheres], open("/Users/igswahwsmcevan/Altimetry/results/all_partitioningoptions_time.p", "wb" ))
+else:
+    outputs,titles,allwheres = pickle.load(open("/Users/igswahwsmcevan/Altimetry/results/all_partitioningoptions_time.p", "rb" ))
+ 
+#titles.insert(0,titles.pop(3))
+#results.insert(0,results.pop(3))
+#outputs.insert(0,outputs.pop(3))
+#allwheres.insert(0,allwheres.pop(3))
+#
+#gts = [r['all']['totalgt'] for r in results]
+#err = [r['all']['errgt'] for r in results]
+#
+#outputst = outputs[:]
+#outputst[1]=[outputst[1]]
+#n=[N.array([len(i.name) for i in lamb]).sum() for lamb in outputst]
+#
+#
+#x=N.arange(len(err)) 
+
+fig = plt.figure(figsize=[7,5])
+#ax = fig.add_subplot(2,1,1)
+ax = fig.add_subplot(2,1,2)
+
+ax.boxplot(outputs[1][0].mb,positions=[1],widths=1)#,sym=fly,patch_artist=True,whis=[5,95])
+ax.boxplot(outputs[1][1].mb,positions=[2],widths=1)#,sym=fly,patch_artist=True,whis=[5,95])
+print scipy.stats.mstats.kruskalwallis(outputs[1][0].mb,outputs[1][1].mb)
+
+
+#PlotIntervals(outputs[1][0],outputfile=None,show=True,annotate=False,colorby=None,colorbar = matplotlib.cm.RdYlBu,colorrng = None,ticklabelsize=13,categorysize=15):
+#plt.rc("font", **{"sans-serif": ["Arial"],"size": 12})
+#errs1 = ax.errorbar(x[0], gts[0], yerr=[err[0], err[0]],fmt='o',color='k')
+#errs = ax.errorbar(x[1:], gts[1:], yerr=[err[1:], err[1:]],fmt='o',color='0.7')
+#ax.plot([0,15],[gts[0],gts[0]],'-',color='0.',zorder=0)
+#
+#ax.annotate(n[0],[x[0],errs1.get_children()[2].get_ydata()],fontsize=9,ha='center',xytext=[0,2],textcoords='offset points')
+#for i,j,k in zip(n[8:],x[8:],errs.get_children()[2].get_ydata()[7:]):
+#    ax.annotate(i,[j,k],fontsize=9,ha='center',xytext=[0,2],textcoords='offset points')
+#
+ax.set_xlim([-0.5,3])
+#ax.set_ylim([-100,-50])
+#ax.set_xticks([])
+#ax.set_ylabel("Mass Balance\n(Gt yr"+"$\mathregular{^{-1})}$")
+#for k in x+0.5:
+#    print k
+#    ax.plot([k,k],ax.get_ylim(),'--',color='0.75',zorder=0)
+#
+#tax = ax.twinx()
+#tax.set_ylim(N.abs(N.array(ax.get_ylim())/75*100)-100)
+#tax.set_ylabel("% difference")
+#tax.yaxis.set_ticks([-10,0,10])
+#
+#
+#
+#for i in ax.yaxis.get_ticklabels():i.set_size(11)
+
+totalwidth = 0.6
+spacing = 0.005
+color = N.array([[240,201,175],[163,100,57],[179,203,252],[45,80,150],[189,237,166],[75,150,38]])/255.
+sigcolor = color[[0,2,4]]
+#color = ['r','g','g']
+center = 0
+
+#allcolors=[]
+#for al in allwheres:
+#    print al  
+#    tcolors = set_colors(al,'ergi.gltype=0',list(color[0]),colors=None)
+#    #print tcolors
+#    tcolors = set_colors(al,'ergi.gltype=1',color[2],colors=tcolors)
+#    #print tcolors
+#    allcolors.append(set_colors(al,'ergi.gltype=2',color[4],colors=tcolors))
+#    print allcolors[-1]
+    
+
+
+#partitionbox(ax2, [outputs[1].mb],[1],[0.5],spacing,['0.5'],showfliers=False,boxwidth=0.2)
+
+#outputs.pop(1)
+#x = N.delete(x,1)
+#allwheres.pop(1)
+#allcolors.pop(1)
+
+#outputs2 = outputs[:]
+#ws=[]
+#
+#for j,it in enumerate(zip(outputs,allwheres)):
+#    w=N.where(N.array([re.search('NULL',i)!=None for i in it[1]]))[0]
+#    if len(w)>0:
+#        outputs[j].pop(w)
+#        allcolors[j].pop(w)
+#        
+#    w2 = N.where(N.array([re.search('ergi.gltype=1',i)!=None for i in it[1]]))[0]
+#    if len(w2)>0:
+#        outputs2[j]=N.delete(outputs2[j],w2)
+
+
+    
+    #print [i.mb for i in o]
+
+#    print '#################################################'
+#print scipy.stats.mstats.kruskalwallis(*[i.mb for i in o2])
+#partitionbox(ax2, [i.mb for i in outputs[2]],2,totalwidth,spacing,color)    
+    
+#ax2.plot([-0.25,15],[N.median(outputs[0][0].mb),N.median(outputs[0][0].mb)],'k-',color='0.',zorder=0)
+#ax2.set_xlabel("Partitioning Method")
+#ax2.set_xticks(N.arange(0,11))
+#ax2.set_xticklabels(titles,rotation=90,fontsize=11,verticalalignment='top')
+#
+#
+#ax.annotate("A.",[5,5],xycoords='axes points',fontsize=12,weight='bold')
+#ax2.annotate("B.",[5,5],xycoords='axes points',fontsize=12,weight='bold')
+#ax2.set_xlim([-0.5,len(err)-0.5])
+#x = N.append(x,1)
+#for k in x+0.5:
+#    print k
+#    ax2.plot([k,k],ax2.get_ylim(),'--',color='0.75',zorder=0)
+#ax2.set_ylabel("Mass Balance\n(m w. eq. a"+"$\mathregular{^{-1})}$")
+#plt.subplots_adjust(left=0.145,right=0.92,bottom=0.36,top=0.95)
+plt.show()
+fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/playing_with_partitioning_times.jpg",dpi=500)
+
