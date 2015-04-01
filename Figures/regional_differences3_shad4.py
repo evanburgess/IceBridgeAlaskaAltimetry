@@ -493,7 +493,7 @@ ax.plot([0.7, xmax],[-74,-74],'--k')
 ax.set_ylabel("Mass Balance (Gt yr"+"$\mathregular{^{-1}}$)",fontsize=11,labelpad=0)
 
 plt.show()
-fig3.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/NewSuppfig1_to_map_shad3.jpg",dpi=300)
+fig3.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/NewSuppfig1_to_map_shad4.jpg",dpi=300)
 
 
 lands = N.concatenate((pointdata[0],pointdata[3],pointdata[6]))
