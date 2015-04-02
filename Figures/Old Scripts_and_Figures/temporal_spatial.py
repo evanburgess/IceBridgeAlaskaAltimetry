@@ -259,7 +259,7 @@ shpfiles = ['intervals_less3yr','intervals_3_5yrs','intervals5_10yrs','intervals
 div1 = '2000-01-01'
 i=0
 
-runall=True
+runall=False
 
 
 if runall:    

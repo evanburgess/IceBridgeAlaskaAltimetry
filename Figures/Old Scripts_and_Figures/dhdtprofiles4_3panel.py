@@ -265,5 +265,5 @@ make_interval_length_plot(ax6,[tide.interval/365.],['blue'],label="Tidewater")
 #    ell.set_color('r')
 plt.show()
 
-fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/dhdtprofiles4.jpg",dpi=500)
+fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/dhdtprofiles4_1.jpg",dpi=500)
 

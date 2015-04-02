@@ -38,9 +38,6 @@ sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
 from Altimetry.Interface import *
 
-
-
-
 def partition_dataset(*args,**kwargs):
 
     for k in kwargs:
@@ -458,5 +455,5 @@ for k in x+0.5:
 ax2.set_ylabel("Mass Balance\n(m w. eq. yr"+"$\mathregular{^{-1})}$")
 plt.subplots_adjust(left=0.145,right=0.92,bottom=0.36,top=0.95)
 plt.show()
-fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/playing_with_partitioning2a.jpg",dpi=500)
+fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/playing_with_partitioning2b.jpg",dpi=500)
 
