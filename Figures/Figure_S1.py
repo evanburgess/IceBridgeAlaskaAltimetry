@@ -1,47 +1,18 @@
-import psycopg2
-import xlrd
-import re
-import unicodedata
+#import psycopg2
 import numpy as N
-from time import mktime
-from datetime import datetime
-from time import mktime
-import time
-import os
-import glob
-import simplekml as kml
-import subprocess
 import datetime as dtm
-from types import *
-import sys
-import ppygis
-import StringIO
-import shapefile
-from osgeo import osr
-from pylab import *
-import matplotlib as plt
+import matplotlib.colors as colors
+import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-
-import ConfigParser
-from glob import glob
-
-cfg = ConfigParser.ConfigParser()
-cfg.read(os.path.dirname(__file__)+'/setup.cfg')
-sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
-
+import matplotlib
+import matplotlib.cm as cmx
+import matplotlib.colorbar as clbr
+from matplotlib.dates import YearLocator, MonthLocator, DateFormatter
 from Altimetry.Interface import *
 
-def hyp_med(bins,count):
-    cum = count.cumsum()
-    
-    idx = N.abs(cum-(cum[-1]/2)).argmin()
-    m,b = N.polyfit(bins[idx-3:idx+3],(cum-(cum[-1]/2))[idx-3:idx+3],1)
-    
-    return -b/m
-    
-def datebtw(date, daterange):return date>daterange[0] and date<daterange[1]
-
+#generate a divergent colorscale with the colorranges provided
 def make_divergent(pos,negs,maxval,minval): 
+    """Generate a divergent colorscale with the colorranges provided"""
     normzero = N.abs(minval)/(maxval-minval)
     
     pos = N.where(pos<=1,pos*(1-normzero)+normzero,pos/255.)
@@ -49,7 +20,7 @@ def make_divergent(pos,negs,maxval,minval):
     
     x,r,g,b = N.append(negs,pos,axis=0).T
     
-    print N.c_[x,r,g,b]
+    #print N.c_[x,r,g,b]
     
     cdict = {'red':[],'green':[],'blue':[]}
     lastx=-1
@@ -75,50 +46,17 @@ def make_divergent(pos,negs,maxval,minval):
             cdict['blue'].pop(-1)
             cdict['blue'].append([x[i-1],b[i-1],b[i]])
         lastx=x1
-    print cdict
+    #print cdict
     return cdict, mcolors.LinearSegmentedColormap('CustomMap', cdict)
     
-    
-    
-    
-    
-data = GetLambData(longest_interval=True,as_object=True, orderby="ergi.region,ergi.name",interval_min=5)
-
-
-
-data.region = N.where([i in ("East Yakutat Glacier","West Yakutat Glacier","Battle Glacier","Hidden Glacier", "Novatak Glacier", "West Nunatak Glacier") for i in data.name],"Fairweather Glacier Bay",data.region)
-
-
-easting = N.array([re.findall('G(.*)E',glimsid)[0] for glimsid in data.glimsid]).astype(int)
-
-data.region,easting,data.name,data.glimsid = (list(x) for x in zip(*sorted(zip(data.region, easting, data.name,data.glimsid))))
-
-
-
-
-net = GetSqlData2("SELECT glimsid,SUM(mean*area)/SUM(area)*0.85 as net from resultsauto WHERE glimsid IN ('%s') GROUP BY glimsid;" %  "','".join(data.glimsid))
-
-#print N.c_[data.glimsid, net['glimsid'],net['net']]
-net2 = []
-for ele in data.glimsid:
-    net2.append(net['net'][N.where(net['glimsid']==ele)[0]][0])
-    
-
-
-
-                   
-
-
-net = N.array(net2)
-outputfile="/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/Longest_Interval_All_Glaciers_intervals3.jpg"
+outputfile="/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/Figure_S1.jpg"
 #outputfile=None
 show=True
 annotate=True
-colorby=net
+#colorby=net
 colorbar = matplotlib.cm.RdYlBu
 colorrng = None
 ticklabelsize=10
-#categorysize=15
 
 """====================================================================================================
 Altimetry.Analytics.PlotIntervals
@@ -137,17 +75,28 @@ Usage:PlotIntervals(data,outputfile=None,show=True)
     show        Set to False to not display figure
 ====================================================================================================        
         """
+#    QUERY DATABASE FOR INTERVALS USED IN LARSEN ET AL., 2015    
+data = GetLambData(longest_interval=True,as_object=True, orderby="ergi.region,ergi.name",interval_min=5)
 
-#FINDING DISTRIBUTION OF SAMPLES THROUGH TIME
-timeline = [datetime.date(t,1,1) for t in N.arange(1993,2015)]
-count = N.zeros(len(timeline))
 
-for j,t in enumerate(timeline):
-    for i in xrange(len(data.date2)):
-        if datebtw(t,[data.date1[i],data.date2[i]]):count[j]+=1
-ordtime = [i.toordinal() for i in timeline]        
-print datetime.date.fromordinal(hyp_med(ordtime,count).astype(int))
+#ADD HOC SOLUTION FO MOVING THESE GLACIERS TO FAIRWEATHER GLACIER BAY
+data.region = N.where([i in ("East Yakutat Glacier","West Yakutat Glacier","Battle Glacier","Hidden Glacier", "Novatak Glacier", "West Nunatak Glacier") for i in data.name],"Fairweather Glacier Bay",data.region)
 
+#EXTRACTING EASTING COORDINATES SO LINES CAN BE ORGANIZED BY LONGITUDE 
+easting = N.array([re.findall('G(.*)E',glimsid)[0] for glimsid in data.glimsid]).astype(int)
+#sorting data by longitude
+data.region,easting,data.name,data.glimsid = (list(x) for x in zip(*sorted(zip(data.region, easting, data.name,data.glimsid))))
+
+#RETREIVING GLACIER MASS BALANCE FOR EACH SURVEYED GLACIER zzz this can now be cleaned up with calc_mb
+net = GetSqlData2("SELECT glimsid,SUM(mean*area)/SUM(area)*0.85 as net from resultsauto WHERE glimsid IN ('%s') GROUP BY glimsid;" %  "','".join(data.glimsid))
+
+#MAKING SURE THE MB IS IN THE SAME ORDER AS DATA ZZZ
+net2 = []
+for ele in data.glimsid:
+    net2.append(net['net'][N.where(net['glimsid']==ele)[0]][0])
+
+net = N.array(net2)
+colorby=net[:]
 
 #COLOR TABLE
 pos=N.flipud(N.array([[1,166,189,219],
@@ -162,25 +111,14 @@ negs = N.flipud(N.array([[1,255,255,200],#,255,237,160],
 [0.5,128,0,38],
 [0.,0,0,0]]))
 
+
 maxval,minval = colorby.max(),colorby.min()
 
-
 dic, colorbar = make_divergent(pos,negs,maxval,minval)
-print type(colorbar)
-#regions = sorted(list(set(s.region)))
-#names = (list(set(s.name)))
 
-
-
-
-years    = YearLocator()   # every year
-months   = MonthLocator()  # every month
-yearsFmt = DateFormatter('%Y')
-
+#CREATING FIGURE
 fig = plt.figure(figsize=[7,9])
 ax = fig.add_axes([0.08,0.06,0.93,0.92])
-
-
 
 #CREATING COLOR BARS
 cm = plt.get_cmap(colorbar) 
@@ -189,34 +127,35 @@ cNorm  = colors.Normalize(vmin=colorrng[0], vmax=colorrng[1])
 scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
 
 #CREATING TEMPORARY PLOT TO RETRIEVE COLORBAR
-#fig = plt.figure(figsize=[15,10])
-#ax = fig.add_axes(position)
 colorbarim = ax.imshow([colorby],extent=[0,0.1,0,0.1],cmap=colorbar,vmin=colorrng[0], vmax=colorrng[1])
+
+#CLEARING FIGURE AND READDING AXIS
 plt.clf()
 ax = fig.add_axes([0.08,0.06,0.93,0.92])
 
-
+#FONT SETTINGS
 plt.rc("font", **{"sans-serif": ["Arial"],"size": 12})
-#PLOTTING TIME HISTOGRAM
-#ax2=ax.twinx()
 
 
 y = 0.1
 lastregion = data.region[0]
 lastgl = ''
 lastrgbottom = 0.1
-lastx=datetime.date(1900,1,1) 
+lastx=dtm.date(1900,1,1) 
 lasty=1000
 
-
+#MANUAL ADJUSTMENTS TO LABEL LOCATIONS FORWARD AND BACKWARDS
 adjust={"East Yakutat":-720,"Battle":200,"Llewellyn":400,"Dinglestadt":-700,"McCarty":0,"Bear":-250,"Steele":100,"Donjek":-700,"Triumph":400,'LeConte':200,"Little Jarvis":30,"Warm Creek":30}
+
+
+#LOOPING THROUGH EACH LINE AND PLOTTING IT
 for i in xrange(len(data.name)): 
     if lastregion != data.region[i]:
         
         regi = data.region[i-1] # re.sub(' ','\n',data.region[i-1])
         if "Kenai" in regi:ax.annotate(regi,xy=[min(data.date1)+dtm.timedelta(days=70),y+0.05],annotation_clip=False,ha='left',fontsize=10)
         else:ax.annotate(regi,xy=[min(data.date1)+dtm.timedelta(days=70),y],annotation_clip=False,ha='left',fontsize=10)
-        pt = ax.plot_date([datetime.datetime(1980,2,1),datetime.datetime(2020,2,1)], [y+0.3,y+0.3], ':',color=[0.5,0.5,0.5],lw=1.5)
+        pt = ax.plot_date([dtm.datetime(1980,2,1),dtm.datetime(2020,2,1)], [y+0.3,y+0.3], ':',color=[0.5,0.5,0.5],lw=1.5)
         lastrgbottom = y
         y += 0.6
         
@@ -230,71 +169,52 @@ for i in xrange(len(data.name)):
     pt = ax.plot_date([data.date1[i],data.date2[i]], [y,y], '-',color=color,lw=1.8)
 
     if annotate:
-        #print lastx,data.date1[i],lasty,lasty
         tdelta = lastx-data.date1[i]
+        
         if lasty-y<0.15 and abs(tdelta.days)<2*365:
-            x = data.date1[i]+datetime.timedelta(days=365*2)
+            x = data.date1[i]+dtm.timedelta(days=365*2)
         else:
             x = data.date1[i]
-            #print data.name[i],x
+
         if re.sub(" Glacier",'',data.name[i]) in adjust.keys():
-            print '^^^^^^^^'
-            print data.name[i],x
+            print "Moving %s Label over %i days" % (data.name[i],adjust[re.sub(" Glacier",'',data.name[i])])
             x=x+dtm.timedelta(days=adjust[re.sub(" Glacier",'',data.name[i])])
-            print x
+
         ax.annotate(re.sub(" Glacier",'',data.name[i]), [x,y],fontsize=6)
-        lastx=x#data.date1[i]
+        lastx=x
         lasty=y
     y+=0.1
     lastregion = data.region[i]
     lastgl = data.name[i]
 
-#ax.annotate(re.sub(' ','\n',data.region[i-1])+'  ',xy=[min(data.date1)-dtm.timedelta(days=70),(lastrgbottom+y)/2.],annotation_clip=False,ha='right',fontsize=10)
 ax.annotate(data.region[i-1],xy=[min(data.date1)+dtm.timedelta(days=70),y-0.07],annotation_clip=False,ha='left',fontsize=10)
 
-#ax.fill_between(timeline,N.zeros(count.size)-5,count/len(data.date1)*y,color=[0.9,0.9,0.9],lw=0,zorder=0.1)
+#GETTING DATE FORMATTING FOR FIGURE
+years    = YearLocator()   # every year
+months   = MonthLocator()  # every month
+yearsFmt = DateFormatter('%Y')
 
 # format the ticks
 ax.xaxis.set_major_locator(years)
 ax.xaxis.set_major_formatter(yearsFmt)
+ax.yaxis.set_ticks([])
+#ax.xaxis.set_minor_locator(months)
+
+#LIMITS AND LABELS
 ax.set_xlim((727809.0, 735110.0))
-#ax2.set_xlim((727809.0, 735110.0))
 ax.set_ylim([-0.3,y+0.3])
 ax.set_xlabel("Time (yr)")
 
-
-
-#ax.xaxis.set_minor_locator(months)
-ax.yaxis.set_ticks([])
 fig.autofmt_xdate()
 for tick in ax.xaxis.get_major_ticks():tick.label.set_fontsize(ticklabelsize)
-ax.autoscale_view()
-#ax2 = fig.add_axes([0.77,0.04,0.1,0.94]) 
+
+#COLORBAR
 cax, kw = clbr.make_axes(ax)
-#clr = clbr.ColorbarBase(cax,cmap=colorbar)#,"right", size="5%", pad='2%',fig=fig)#)
 clr = clbr.Colorbar(cax,colorbarim) 
 clr.set_label('Mass Balance (m w. eq. yr'+"$\mathregular{^{-1})}$",size = ticklabelsize)
 clr.ax.tick_params(labelsize=10)
 clr.ax.set_aspect(30)
 
-ax.set_axis_bgcolor('none')
-#ax2 = ax.twinx()
-#ax2.set_zorder(-1)
-#ax2.plot_date(timeline,count,'-',color=[0.7,0.7,0.7],lw=2,zorder=0.1)
-#ax.plot_date(timeline,count,'-',color=[0.7,0.7,0.7],lw=2,zorder=0.1)
-#ax2.set_xlim((727809.0, 735110.0))
-#ax2.yaxis.tick_left()
-#ax2.set_ylim([0,116])
-#ax.set_ylabel("Number of Mass Balance Estimates")
-#ax.yaxis.labelpad = 20
-#ax2 = ax.twinx()
-
-#ax.text(-0.01, 1, "138 Glaciers", transform=ax.transAxes,fontsize=10, va='top',rotation=90)
-#ax.text(0, 0, "0 Glaciers", transform=ax.transAxes,fontsize=10, va='bottom',rotation=90)
-#ax.text(0, 0.51, "Number of Mass Balance Estimates", transform=ax.transAxes,fontsize=10, va='center',rotation=90)
-
-fig.autofmt_xdate()
-#outputfile = None
 if type(outputfile) == str:
     fig.savefig(outputfile,dpi=500)
     plt.close()
