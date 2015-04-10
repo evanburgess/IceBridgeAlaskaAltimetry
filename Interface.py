@@ -1,105 +1,95 @@
 import psycopg2
 import ppygis
-import xlrd
+import scipy.stats.mstats as mstats
+import scipy.stats as stats
+from scipy.stats import distributions
+import warnings
 import re
-import unicodedata
 import numpy as N
 import datetime as dtm
 import os
-import glob
-import simplekml as kml
-import subprocess
 from types import *
-from osgeo.gdalnumeric import *
-from osgeo import gdal
-import sys
-import matplotlib.pyplot as plt
-import time
-import copy as c
-import scipy.stats.mstats as mstats
-from scipy.stats import distributions
-import warnings
+
+from Analytics import *
+#from osgeo.gdalnumeric import *
+#import unicodedata
+#import xlrd
+#import glob
+#import simplekml as kml
+#import subprocess
+
+#from osgeo import gdal
+#import sys
+#import matplotlib.pyplot as plt
+#import time
+#import copy as c
+
+#from GeoTools import *
+#from Analytics import *
+#import ConfigParser
+#from functools import wraps
+#import errno
+#import signal
+
+#from Analytics import *
 
 
-sys.path.append('/Users/igswahwsmcevan/Altimetry/code')
-#from .Interface import *
-from Altimetry.GeoTools import *
-from Altimetry.Analytics import *
+#def doy_to_datetime(doy,year):return dtm.date(year, 1, 1) + dtm.timedelta(doy - 1)
 
-import ConfigParser
-cfg = ConfigParser.ConfigParser()
-cfg.read(os.path.dirname(__file__)+'/setup.cfg')
-
-
-from functools import wraps
-import errno
-#import os
-import signal
-
-def doy_to_datetime(doy,year):return dtm.date(year, 1, 1) + dtm.timedelta(doy - 1)
-
-class SqlObject:
-    def __init__(self, fields):
-        self.fields = fields
-        aliases = []
-
-        for (i,alias) in enumerate(fields):
-            if re.search('\sas\s',alias,re.IGNORECASE):
-                aliases.append(re.findall('as\s(.*)$',alias,re.IGNORECASE)[0])
-            else:
-                aliases.append(alias)
-        self.aliases = aliases
-
-def parse_sql(sql):
-
-    if re.search('^select',sql, re.IGNORECASE):
-        fields = re.findall('select (.*) from',sql, re.IGNORECASE)[0]
-        fields = re.sub('\s*,\s*',',',fields)
-        fields = re.sub('\(.*\)','()',fields).split(',')
-        
-        outfields = []
-        for i,field in enumerate(fields):
-            if re.search('\*',field):
-                if re.search('^\*$',field):
-                    table = re.findall('from\s+(\w+)[\s\;]',sql, re.IGNORECASE)[0] 
-                if re.search('\w+\.\*$',field):
-                    table = re.findall('(\w+)\.\*',field)[0]
-
-                conn,cur=ConnectDb()
-                
-                #find all fields in table
-                cur.execute("select column_name from information_schema.columns where table_name='"+table+"';")
-                columns = cur.fetchall()
-                cur.close
-                
-                fieldsinsert = [table+'.'+x[0] for x in columns]
-                outfields.extend(fieldsinsert)
-            else:outfields.append(field)
-            
-        out = SqlObject(outfields)
-        return out
-        #dbname = cfg.get('Section One', 'dbname'), host=cfg.get('Section One', 'host'), user=cfg.get('Section One', 'user')
+#class SqlObject:
+#    def __init__(self, fields):
+#        self.fields = fields
+#        aliases = []
+#
+#        for (i,alias) in enumerate(fields):
+#            if re.search('\sas\s',alias,re.IGNORECASE):
+#                aliases.append(re.findall('as\s(.*)$',alias,re.IGNORECASE)[0])
+#            else:
+#                aliases.append(alias)
+#        self.aliases = aliases
+#
+#def parse_sql(sql):
+#
+#    if re.search('^select',sql, re.IGNORECASE):
+#        fields = re.findall('select (.*) from',sql, re.IGNORECASE)[0]
+#        fields = re.sub('\s*,\s*',',',fields)
+#        fields = re.sub('\(.*\)','()',fields).split(',')
+#        
+#        outfields = []
+#        for i,field in enumerate(fields):
+#            if re.search('\*',field):
+#                if re.search('^\*$',field):
+#                    table = re.findall('from\s+(\w+)[\s\;]',sql, re.IGNORECASE)[0] 
+#                if re.search('\w+\.\*$',field):
+#                    table = re.findall('(\w+)\.\*',field)[0]
+#
+#                conn,cur=ConnectDb()
+#                
+#                #find all fields in table
+#                cur.execute("select column_name from information_schema.columns where table_name='"+table+"';")
+#                columns = cur.fetchall()
+#                cur.close
+#                
+#                fieldsinsert = [table+'.'+x[0] for x in columns]
+#                outfields.extend(fieldsinsert)
+#            else:outfields.append(field)
+#            
+#        out = SqlObject(outfields)
+#        return out
+#        #dbname = cfg.get('Section One', 'dbname'), host=cfg.get('Section One', 'host'), user=cfg.get('Section One', 'user')
         
 def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbose=False):
 
-    if server == None:
-        st = "dbname="+cfg.get('Section One', 'dbname')+" host='"+cfg.get('Section One', 'host')+"' user='"+cfg.get('Section One', 'user')+"'"+" password='"+cfg.get('Section One', 'passwd')+"'"
-    elif server == 'localhost':
-        host = 'localhost'
-        dbname = 'altimetry'
-        user = 'evan'
-        st = "dbname="+dbname+" host='"+host+"' user='"+user+"'"
-    elif server == 'thor':
-        host = 'thor.gi.alaska.edu'
-        dbname = 'spatial_database'
-        user = 'postgres'
-        pd = 'postgres'
-        st = "dbname="+dbname+" host='"+host+"' user='"+user+"'" +" password='"+pd+"'" 
-    #print "here %s " %st
-         
-    if get_host != None and get_user == None and get_dbname == None: return host
-    if get_host == None and get_user != None and get_dbname == None: return user
-    if get_host == None and get_user == None and get_dbname != None: return dbname
+    if server == None:server='defaulthost'
+
+    import __init__ as init
+    serv = getattr(init,server)
+
+    st = "dbname='%s' host='%s' user='%s' password='%s'" % (serv['dbname'],serv['host'],serv['user'],serv['password'])
+
+    if get_host != None and get_user == None and get_dbname == None: return serv['host']
+    if get_host == None and get_user != None and get_dbname == None: return serv['user']
+    if get_host == None and get_user == None and get_dbname != None: return serv['dbname']
     
     if verbose: print st     
     
@@ -108,29 +98,29 @@ def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbos
         cur = conn.cursor()
         return conn,cur
     
-class LambOut:
-    def __init__(self, name, date1,date2,volmodel,vol25diff,vol75diff,balmodel,bal25diff,bal75diff,e,dz,dz25,dz75,aad,masschange,massbal,numdata):
-        self.name = name
-        self.date1 = date1
-        self.date2 = date2
-        self.volmodel = volmodel
-        self.vol25diff =vol25diff
-        self.vol75diff =vol75diff
-        self.balmodel = balmodel
-        self.bal25diff = bal25diff
-        self.bal75diff = bal75diff
-        self.e = e
-        self.dz = dz
-        self.dz25 = dz25
-        self.dz75 = dz75
-        self.aad = aad
-        self.masschange = masschange
-        self.massbal = massbal
-        self.numdata = numdata
-        self.interval = (date2 - date1).days
+#class LambOut:
+#    def __init__(self, name, date1,date2,volmodel,vol25diff,vol75diff,balmodel,bal25diff,bal75diff,e,dz,dz25,dz75,aad,masschange,massbal,numdata):
+#        self.name = name
+#        self.date1 = date1
+#        self.date2 = date2
+#        self.volmodel = volmodel
+#        self.vol25diff =vol25diff
+#        self.vol75diff =vol75diff
+#        self.balmodel = balmodel
+#        self.bal25diff = bal25diff
+#        self.bal75diff = bal75diff
+#        self.e = e
+#        self.dz = dz
+#        self.dz25 = dz25
+#        self.dz75 = dz75
+#        self.aad = aad
+#        self.masschange = masschange
+#        self.massbal = massbal
+#        self.numdata = numdata
+#        self.interval = (date2 - date1).days
 
 def kurtosistest_evan(a, axis=0):
-    #a, axis = scipy.stats._chk_asarray(a, axis)
+    #a, axis = stats._chk_asarray(a, axis)
     n = N.ma.count(a,axis=axis)
     if N.min(n) < 5 and n.size==1:
         raise ValueError(
@@ -142,22 +132,22 @@ def kurtosistest_evan(a, axis=0):
         warnings.warn(
             "kurtosistest only valid for n>=20 ... continuing anyway, n=%i" %
             N.min(n))
-    b2 = scipy.stats.mstats.kurtosis(a, axis, fisher=False)
+    b2 = mstats.kurtosis(a, axis, fisher=False)
     E = 3.0*(n-1) / (n+1)
     varb2 = 24.0*n*(n-2)*(n-3) / ((n+1)*(n+1)*(n+3)*(n+5))
-    x = (b2-E)/ma.sqrt(varb2)
+    x = (b2-E)/ N.ma.sqrt(varb2)
     sqrtbeta1 = 6.0*(n*n-5*n+2)/((n+7)*(n+9)) * N.sqrt((6.0*(n+3)*(n+5)) /
                                                         (n*(n-2)*(n-3)))
     A = 6.0 + 8.0/sqrtbeta1 * (2.0/sqrtbeta1 + N.sqrt(1+4.0/(sqrtbeta1**2)))
     term1 = 1 - 2./(9.0*A)
-    denom = 1 + x*ma.sqrt(2/(A-4.0))
+    denom = 1 + x* N.ma.sqrt(2/(A-4.0))
     if N.ma.isMaskedArray(denom):
         # For multi-dimensional array input
         denom[denom < 0] = N.ma.masked
     elif denom < 0:
         denom = N.ma.masked
     
-    term2 = ma.power((1-2.0/A)/denom,1/3.0)
+    term2 = N.ma.power((1-2.0/A)/denom,1/3.0)
     Z = (term1 - term2) / N.sqrt(2/(9.0*A))
     if N.min(n) < 5 and n.size>1: 
         return N.ma.masked_array(Z,mask=n<8), N.ma.masked_array(2 * distributions.norm.sf(N.abs(Z)),mask=n<8)
@@ -170,7 +160,7 @@ def skewtest_evan(a, axis=0):
     if axis is None:
         a = a.ravel()
         axis = 0
-    b2 = scipy.stats.mstats.skew(a,axis)
+    b2 = mstats.skew(a,axis)
     n = N.ma.count(a,axis=axis)
     if N.min(n) < 8 and n.size==1:
         raise ValueError(
@@ -178,182 +168,182 @@ def skewtest_evan(a, axis=0):
             " were given." % N.min(n))
     elif N.min(n) < 8 and n.size>1:
         warnings.warn("WARNING: Outputting masked array as some rows have less than the 8 samples required")
-    y = b2 * ma.sqrt(((n+1)*(n+3)) / (6.0*(n-2)))
+    y = b2 * N.ma.sqrt(((n+1)*(n+3)) / (6.0*(n-2)))
     beta2 = (3.0*(n*n+27*n-70)*(n+1)*(n+3)) / ((n-2.0)*(n+5)*(n+7)*(n+9))
-    W2 = -1 + ma.sqrt(2*(beta2-1))
-    delta = 1/ma.sqrt(0.5*ma.log(W2))
-    alpha = ma.sqrt(2.0/(W2-1))
-    y = ma.where(y == 0, 1, y)
-    Z = delta*ma.log(y/alpha + ma.sqrt((y/alpha)**2+1))
+    W2 = -1 + N.ma.sqrt(2*(beta2-1))
+    delta = 1/N.ma.sqrt(0.5* N.ma.log(W2))
+    alpha = N.ma.sqrt(2.0/(W2-1))
+    y = N.ma.where(y == 0, 1, y)
+    Z = delta*N.ma.log(y/alpha + N.ma.sqrt((y/alpha)**2+1))
     if N.min(n) < 8 and n.size>1: 
         return N.ma.masked_array(Z,mask=n<8), N.ma.masked_array(2 * distributions.norm.sf(N.abs(Z)),mask=n<8)
     else:
         return Z, 2 * distributions.norm.sf(N.abs(Z))
 #############################################################################################
 #############################################################################################    
-def read_geom_text(sin):
-    
-    s = c.deepcopy(sin) 
-    if re.search('MULTIPOLYGON',s):          
-        s = re.sub(r'MULTIPOLYGON\(\(\(','',s)
-        s = re.sub('\)\)\)','',s)
-        s2 = re.split('\)\,\(',s)
-        
-        #print len(s2)
-        s3=[]
-        for (i,ring) in enumerate(s2):
-    
-            ring = re.split(',',ring)
-        
-            for (j,tupl) in enumerate(ring):
-        #    #s3.append(tupl.split[' ']) 
-                temp = tupl.split(' ')
-                #print temp[0], temp[1]
-                sys.stdout.flush()
-                temp[0] = float(temp[0])
-                temp[1] = float(temp[1])
-                ring[j]=temp
-            s3.append(ring)
-        if len(s3) > 1:
-            outer = s3.pop(0)
-            inner = s3
-        else:
-            outer = s3[0]
-            inner = None
-            
-        return outer,inner
-        
-    if re.search('POINT',s):
-        s=re.sub('POINT\(','',s) 
-        s=re.sub('\)','',s) 
-        x,y = s.split() 
-        return x,y
- 
-def GetSqlData(select,bycolumn = False):
-    """====================================================================================================
-Altimetry.Interface.GetSqlData
-
-Evan Burgess 2013-08-22
-====================================================================================================
-Purpose:
-    Extract data from postgres database using sql query and return data organized by either row or column.  
-    
-Returns: 
-    If data is returned by row (default) the requested data will be stored as a list of dictionaries where each
-    row in the output table is stored as a dictionary where the keys are the column names.  If you set aliases
-    in your sql query, the key names will follow those aliases.  If you request bycolumn, each column in the output
-    table is accessed though a dictionary where the key is the column name.  Each column of data is stored in that 
-    dictionary as a list or as a numpy array.  Special data formats are supported:
-        
-        If you request a MULTIPOLYGON geometry, the geometry will be extracted into a list of coordinates for the
-        outer ring and another list of inner rings (which is another list of coordinates).  Data is stored in the 
-        dictionary as keys 'inner' and 'outer'.  If there are no inner rings, None is returned.
-        
-        If you request ST_SummaryStats() from a raster stats are separated into values output by that function
-        including, count, sum, mean, stddev, min, max.
-        
-
-GetSqlData(select,bycolumn = False):   
-
-ARGUMENTS:        
-    select              Any postgresql select statement as string including ';'  This should be robust but
-                        let evan know if you hit a snag or want added functionality.
-KEYWORD ARGUMENTS:
-    bycolumn            Set to True to request that data be returned by column instead of row.
-====================================================================================================        
-        """
-    #connect to database and execute sql and retrieve data
-    conn,cur = ConnectDb()
-    cur.execute(select)
-    data = cur.fetchall()
-    
-    #RETRIEVING REQUESTED FIELDS AND ALIASES FOR KEYS TO OUTPUT DICTIONARY
-    sql = parse_sql(select)
-    #print sql.aliases
-    
-    
-    lst=[]
-             
-    #looping through data and setting each output to list format
-    for (j,row) in enumerate(data):
-        dic = {}
-        
-        for i,alias in enumerate(sql.aliases):
-    
-            guesstype=NoneType
-            guesstype = type(data[j][i])
-            #print alias, guesstype
-    
-            if guesstype == int or guesstype == float or guesstype == dtm.date:
-                dic[alias] = data[j][i]
-            
-            elif guesstype == list:
-                
-                listtype = type(data[j][i][0])
-                #IF INPUT IS OUTPUT FROM SUMMARY STATS OF A RASTER    -- this has to be before type float or the code will try to process as float and fail
-                if re.search('^ST_SummaryStats',sql.fields[i]):
-                    try:
-                        dic['count'],dic['sum'],dic['mean'],dic['stddev'],dic['min'],dic['max'] = [float(x) for x in re.split(',',data[j][i])] 
-                    except: pass 
-                        
-                elif listtype == int:
-                    try:
-                        dic[alias] = N.array(data[j][i],dtype=int)
-                    except:print 'Warning: Conversion of ',alias, ' to type numpy int failed.'
-                
-                elif listtype == float:
-                    try:
-                        dic[alias] = N.array(data[j][i],dtype=float)
-                    except: print 'Warning: Conversion of ',alias, ' to type numpy float failed.'
-                
-                elif listtype == dtm.date:
-                    try:
-                        dic[alias] = N.array(data[j][i],dtype=dtm.date)
-                    except: print 'Warning: Conversion of ',alias, ' to type numpy date failed.'
-                
-                elif guesstype == str:
-                    try:
-                        dic[alias] = N.core.defchararray.asarray(data[j][i])
-                    except:
-                        print 'Warning: Conversion of ',alias, ' to chararray failed.'
-                else:dic[alias] = data[j][i]
-                    
-            elif guesstype == str:
-                #IF INPUT IS A GEOGRAPHY/GEOMETRY STRING
-                #IF A MULTIPOLYGON
-                if re.search('geom',alias,re.IGNORECASE):
-                    dic['geom'] = ppygis.Geometry.read_ewkb(data[j][i])
-                elif re.search('geog',alias,re.IGNORECASE):
-                    dic['geog'] = ppygis.Geometry.read_ewkb(data[j][i])
-                else: 
-                    dic[alias] = data[j][i]
-            
-            elif guesstype == bool:
-                dic[alias] = data[j][i]
-            else:dic[alias] = data[j][i]
-                    
-    
-        lst.append(dic)
-        #if len(lst) == 1: lst = lst[0] 
-        dic = None
- 
-    
-    if bycolumn:
-        out = {}
-        for j,column in enumerate(lst[0].keys()):out[column]=[]
-            
-        for i,row in enumerate(lst):
-            for j,column in enumerate(row.keys()):
-                out[column].append(row[column])
-        
-        for j,column in enumerate(lst[0].keys()):
-            if type(out[column][-1]) == int and type(out[column][0]) == int or \
-            type(out[column][-1]) == float and type(out[column][0]) == float:
-                try:
-                    out[column] = N.array(out[column][:])
-                except:pass
-        lst=out
-    return lst
+#def read_geom_text(sin):
+#    
+#    s = c.deepcopy(sin) 
+#    if re.search('MULTIPOLYGON',s):          
+#        s = re.sub(r'MULTIPOLYGON\(\(\(','',s)
+#        s = re.sub('\)\)\)','',s)
+#        s2 = re.split('\)\,\(',s)
+#        
+#        #print len(s2)
+#        s3=[]
+#        for (i,ring) in enumerate(s2):
+#    
+#            ring = re.split(',',ring)
+#        
+#            for (j,tupl) in enumerate(ring):
+#        #    #s3.append(tupl.split[' ']) 
+#                temp = tupl.split(' ')
+#                #print temp[0], temp[1]
+#                sys.stdout.flush()
+#                temp[0] = float(temp[0])
+#                temp[1] = float(temp[1])
+#                ring[j]=temp
+#            s3.append(ring)
+#        if len(s3) > 1:
+#            outer = s3.pop(0)
+#            inner = s3
+#        else:
+#            outer = s3[0]
+#            inner = None
+#            
+#        return outer,inner
+#        
+#    if re.search('POINT',s):
+#        s=re.sub('POINT\(','',s) 
+#        s=re.sub('\)','',s) 
+#        x,y = s.split() 
+#        return x,y
+#
+#def GetSqlData(select,bycolumn = False):
+#    """====================================================================================================
+#Altimetry.Interface.GetSqlData
+#
+#Evan Burgess 2013-08-22
+#====================================================================================================
+#Purpose:
+#    Extract data from postgres database using sql query and return data organized by either row or column.  
+#    
+#Returns: 
+#    If data is returned by row (default) the requested data will be stored as a list of dictionaries where each
+#    row in the output table is stored as a dictionary where the keys are the column names.  If you set aliases
+#    in your sql query, the key names will follow those aliases.  If you request bycolumn, each column in the output
+#    table is accessed though a dictionary where the key is the column name.  Each column of data is stored in that 
+#    dictionary as a list or as a numpy array.  Special data formats are supported:
+#        
+#        If you request a MULTIPOLYGON geometry, the geometry will be extracted into a list of coordinates for the
+#        outer ring and another list of inner rings (which is another list of coordinates).  Data is stored in the 
+#        dictionary as keys 'inner' and 'outer'.  If there are no inner rings, None is returned.
+#        
+#        If you request ST_SummaryStats() from a raster stats are separated into values output by that function
+#        including, count, sum, mean, stddev, min, max.
+#        
+#
+#GetSqlData(select,bycolumn = False):   
+#
+#ARGUMENTS:        
+#    select              Any postgresql select statement as string including ';'  This should be robust but
+#                        let evan know if you hit a snag or want added functionality.
+#KEYWORD ARGUMENTS:
+#    bycolumn            Set to True to request that data be returned by column instead of row.
+#====================================================================================================        
+#        """
+#    #connect to database and execute sql and retrieve data
+#    conn,cur = ConnectDb()
+#    cur.execute(select)
+#    data = cur.fetchall()
+#    
+#    #RETRIEVING REQUESTED FIELDS AND ALIASES FOR KEYS TO OUTPUT DICTIONARY
+#    sql = parse_sql(select)
+#    #print sql.aliases
+#    
+#    
+#    lst=[]
+#             
+#    #looping through data and setting each output to list format
+#    for (j,row) in enumerate(data):
+#        dic = {}
+#        
+#        for i,alias in enumerate(sql.aliases):
+#    
+#            guesstype=NoneType
+#            guesstype = type(data[j][i])
+#            #print alias, guesstype
+#    
+#            if guesstype == int or guesstype == float or guesstype == dtm.date:
+#                dic[alias] = data[j][i]
+#            
+#            elif guesstype == list:
+#                
+#                listtype = type(data[j][i][0])
+#                #IF INPUT IS OUTPUT FROM SUMMARY STATS OF A RASTER    -- this has to be before type float or the code will try to process as float and fail
+#                if re.search('^ST_SummaryStats',sql.fields[i]):
+#                    try:
+#                        dic['count'],dic['sum'],dic['mean'],dic['stddev'],dic['min'],dic['max'] = [float(x) for x in re.split(',',data[j][i])] 
+#                    except: pass 
+#                        
+#                elif listtype == int:
+#                    try:
+#                        dic[alias] = N.array(data[j][i],dtype=int)
+#                    except:print 'Warning: Conversion of ',alias, ' to type numpy int failed.'
+#                
+#                elif listtype == float:
+#                    try:
+#                        dic[alias] = N.array(data[j][i],dtype=float)
+#                    except: print 'Warning: Conversion of ',alias, ' to type numpy float failed.'
+#                
+#                elif listtype == dtm.date:
+#                    try:
+#                        dic[alias] = N.array(data[j][i],dtype=dtm.date)
+#                    except: print 'Warning: Conversion of ',alias, ' to type numpy date failed.'
+#                
+#                elif guesstype == str:
+#                    try:
+#                        dic[alias] = N.core.defchararray.asarray(data[j][i])
+#                    except:
+#                        print 'Warning: Conversion of ',alias, ' to chararray failed.'
+#                else:dic[alias] = data[j][i]
+#                    
+#            elif guesstype == str:
+#                #IF INPUT IS A GEOGRAPHY/GEOMETRY STRING
+#                #IF A MULTIPOLYGON
+#                if re.search('geom',alias,re.IGNORECASE):
+#                    dic['geom'] = ppygis.Geometry.read_ewkb(data[j][i])
+#                elif re.search('geog',alias,re.IGNORECASE):
+#                    dic['geog'] = ppygis.Geometry.read_ewkb(data[j][i])
+#                else: 
+#                    dic[alias] = data[j][i]
+#            
+#            elif guesstype == bool:
+#                dic[alias] = data[j][i]
+#            else:dic[alias] = data[j][i]
+#                    
+#    
+#        lst.append(dic)
+#        #if len(lst) == 1: lst = lst[0] 
+#        dic = None
+# 
+#    
+#    if bycolumn:
+#        out = {}
+#        for j,column in enumerate(lst[0].keys()):out[column]=[]
+#            
+#        for i,row in enumerate(lst):
+#            for j,column in enumerate(row.keys()):
+#                out[column].append(row[column])
+#        
+#        for j,column in enumerate(lst[0].keys()):
+#            if type(out[column][-1]) == int and type(out[column][0]) == int or \
+#            type(out[column][-1]) == float and type(out[column][0]) == float:
+#                try:
+#                    out[column] = N.array(out[column][:])
+#                except:pass
+#        lst=out
+#    return lst
  
 def GetSqlData2(select,bycolumn=True):
     """====================================================================================================
@@ -449,102 +439,103 @@ KEYWORD ARGUMENTS:
        return lst
 
 
-def postgres_table_to_numpy(table):
-    
-    dbname = ConnectDb(get_dbname=1)
-    user = ConnectDb(get_user=1)
-    host = ConnectDb(get_host=1)
-
-    tempfile = '/Users/igswahwsmcevan/AK/DEM/test1.tiff'
-    
-    #print """/Applications/Postgres.app/Contents/MacOS/bin/gdal_translate -of GTiff "PG:host="""+host+" port=5432 dbname='"+dbname+"' user='"+user+"' schema='public' table="+table+""" mode=1" '"""+tempfile+"'"
-    os.system("""/Applications/Postgres.app/Contents/MacOS/bin/gdal_translate -of GTiff "PG:host="""+host+" port=5432 dbname='"+dbname+"' user='"+user+"' schema='public' table="+table+""" mode=1" '"""+tempfile+"'")
-    dataset = gdal.Open(tempfile)    
-    raster = BandReadAsArray(dataset.GetRasterBand(1))
-    #raster = N.where(raster < -1e12,N.nan,raster)
-    raster = N.ma.masked_array(raster,raster < -1e12)
-    
-    os.remove(tempfile)
-    
-    return raster
-    
-def PyClipRasterBySingleGeom(sql,gridfile=None,band=None,geotransform=None, showplot=None):
-    
-    #print type(gridfile),type(band), type(geotransform)
-    
-    if type(gridfile) == str:
-        dataset = gdal.Open(gridfile)
-        band = dataset.GetRasterBand(1).ReadAsArray()
-        geotransform = dataset.GetGeoTransform()
-    elif type(band) == numpy.ndarray and type(geotransform) == tuple:
-        pass
-    else: raise EvanError('check inputs')
-
-    
-    if geotransform[5] > 0: raise EvanError('This script is not yet ready for geotransforms with a ll corner tie point')
-    geom = GetSqlData2(sql,bycolumn=False)
-    
-    #OUTER BOUNDARY COORDINATES
-    pix_x,pix_y = coord_to_pix(geotransform,geom[0]['outer'])
-    
-    #print 'maxmin',N.max(pix_y), N.min(pix_y),N.max(pix_x), N.min(pix_x)
-    
-    boxl = math.floor(N.min(pix_x))
-    boxr = math.ceil(N.max(pix_x))
-    boxt = math.ceil(N.max(pix_y))
-    boxb = math.floor(N.min(pix_y))
-    
-    #CORRECTING COORDS TO CROPPED COORDS
-    pix_x -= boxl
-    pix_y -= boxb
-    
-    #print 'maxmin',N.max(pix_y), N.min(pix_y),N.min(pix_x), N.max(pix_x)
-    
-    #INNER BOUNDARY COORDINATES
-    if not type(geom[0]['inner']) == NoneType:
-        inpix_x = []
-        inpix_y = []
-        for i in xrange(len(geom[0]['inner'])):
-            tinpix_x,tinpix_y = coord_to_pix(geotransform,geom[0]['inner'][i])
-            
-            #CORRECTING COORDS TO CROPPED COORDS
-            tinpix_x -= boxl
-            tinpix_y -= boxb
-        
-            inpix_x.append(tinpix_x)
-            inpix_y.append(tinpix_y)
-        
-    #CROPPING GRID
-    crop = band[boxb:boxt+1,boxl:boxr+1]
-    
-    
-    from PIL import Image, ImageDraw
-    
-    #RASTERIZING GRID
-    img = Image.new('L', (crop.shape[1], crop.shape[0]), 0)
-    ImageDraw.Draw(img).polygon(zip(pix_x, pix_y), outline=None, fill=1)
-    if not type(geom[0]['inner']) == NoneType:
-        for i in xrange(len(geom[0]['inner'])):
-            ImageDraw.Draw(img).polygon(zip(inpix_x[i], inpix_y[i]), outline=None, fill=0)
-    
-    mask = numpy.array(img)
-            
-    raster = N.ma.masked_array(crop,N.logical_or(mask != 1, N.isnan(crop)))
-    
-    if showplot != None:
-        fig1 = plt.figure()
-        ax1 = fig1.add_subplot(111)
-        im = ax1.imshow(raster,extent=[0,mask.shape[1],mask.shape[0],0])
-
-        if not type(geom[0]['inner']) == NoneType:
-            for i in xrange(len(geom[0]['inner'])):
-                ax1.plot(inpix_x[i], inpix_y[i],'r')
-        ax1.plot(pix_x,pix_y)
-    
-        plt.show()
-        time.sleep(2)
-        fig1.close()
-    return raster
+#def postgres_table_to_numpy(table):
+#    
+#        """
+#    dbname = ConnectDb(get_dbname=1)
+#    user = ConnectDb(get_user=1)
+#    host = ConnectDb(get_host=1)
+#
+#    tempfile = '/Users/igswahwsmcevan/AK/DEM/test1.tiff'
+#    
+#    #print """/Applications/Postgres.app/Contents/MacOS/bin/gdal_translate -of GTiff "PG:host="""+host+" port=5432 dbname='"+dbname+"' user='"+user+"' schema='public' table="+table+""" mode=1" '"""+tempfile+"'"
+#    os.system("""/Applications/Postgres.app/Contents/MacOS/bin/gdal_translate -of GTiff "PG:host="""+host+" port=5432 dbname='"+dbname+"' user='"+user+"' schema='public' table="+table+""" mode=1" '"""+tempfile+"'")
+#    dataset = gdal.Open(tempfile)    
+#    raster = BandReadAsArray(dataset.GetRasterBand(1))
+#    #raster = N.where(raster < -1e12,N.nan,raster)
+#    raster = N.ma.masked_array(raster,raster < -1e12)
+#    
+#    os.remove(tempfile)
+#    
+#    return raster
+#    
+#def PyClipRasterBySingleGeom(sql,gridfile=None,band=None,geotransform=None, showplot=None):
+#    
+#    #print type(gridfile),type(band), type(geotransform)
+#    
+#    if type(gridfile) == str:
+#        dataset = gdal.Open(gridfile)
+#        band = dataset.GetRasterBand(1).ReadAsArray()
+#        geotransform = dataset.GetGeoTransform()
+#    elif type(band) == N.ndarray and type(geotransform) == tuple:
+#        pass
+#    else: raise EvanError('check inputs')
+#
+#    
+#    if geotransform[5] > 0: raise EvanError('This script is not yet ready for geotransforms with a ll corner tie point')
+#    geom = GetSqlData2(sql,bycolumn=False)
+#    
+#    #OUTER BOUNDARY COORDINATES
+#    pix_x,pix_y = coord_to_pix(geotransform,geom[0]['outer'])
+#    
+#    #print 'maxmin',N.max(pix_y), N.min(pix_y),N.max(pix_x), N.min(pix_x)
+#    
+#    boxl = math.floor(N.min(pix_x))
+#    boxr = math.ceil(N.max(pix_x))
+#    boxt = math.ceil(N.max(pix_y))
+#    boxb = math.floor(N.min(pix_y))
+#    
+#    #CORRECTING COORDS TO CROPPED COORDS
+#    pix_x -= boxl
+#    pix_y -= boxb
+#    
+#    #print 'maxmin',N.max(pix_y), N.min(pix_y),N.min(pix_x), N.max(pix_x)
+#    
+#    #INNER BOUNDARY COORDINATES
+#    if not type(geom[0]['inner']) == NoneType:
+#        inpix_x = []
+#        inpix_y = []
+#        for i in xrange(len(geom[0]['inner'])):
+#            tinpix_x,tinpix_y = coord_to_pix(geotransform,geom[0]['inner'][i])
+#            
+#            #CORRECTING COORDS TO CROPPED COORDS
+#            tinpix_x -= boxl
+#            tinpix_y -= boxb
+#        
+#            inpix_x.append(tinpix_x)
+#            inpix_y.append(tinpix_y)
+#        
+#    #CROPPING GRID
+#    crop = band[boxb:boxt+1,boxl:boxr+1]
+#    
+#    
+#    from PIL import Image, ImageDraw
+#    
+#    #RASTERIZING GRID
+#    img = Image.new('L', (crop.shape[1], crop.shape[0]), 0)
+#    ImageDraw.Draw(img).polygon(zip(pix_x, pix_y), outline=None, fill=1)
+#    if not type(geom[0]['inner']) == NoneType:
+#        for i in xrange(len(geom[0]['inner'])):
+#            ImageDraw.Draw(img).polygon(zip(inpix_x[i], inpix_y[i]), outline=None, fill=0)
+#    
+#    mask = N.array(img)
+#            
+#    raster = N.ma.masked_array(crop,N.logical_or(mask != 1, N.isnan(crop)))
+#    
+#    if showplot != None:
+#        fig1 = plt.figure()
+#        ax1 = fig1.add_subplot(111)
+#        im = ax1.imshow(raster,extent=[0,mask.shape[1],mask.shape[0],0])
+#
+#        if not type(geom[0]['inner']) == NoneType:
+#            for i in xrange(len(geom[0]['inner'])):
+#                ax1.plot(inpix_x[i], inpix_y[i],'r')
+#        ax1.plot(pix_x,pix_y)
+#    
+#        plt.show()
+#        time.sleep(2)
+#        fig1.close()
+#    return raster
     
 ##################################################################################################################  
 ##################################################################################################################    
@@ -821,7 +812,7 @@ inner join ergi on glnames.glimsid=ergi.glimsid left join tidewater_flux as flx 
         if type(s) == dict:
             s=LambObject(s)
             print 'object'
-        elif type(s) == list or type(s) == numpy.ndarray:
+        elif type(s) == list or type(s) == N.ndarray:
             s = [LambObject(row) for row in s]
             print 'list'
        
@@ -829,12 +820,12 @@ inner join ergi on glnames.glimsid=ergi.glimsid left join tidewater_flux as flx 
     
     #def norm_e(self):return (self.e - self.min) / (self.max - self.min)
     
-def quadrat(region):
-    #quadrat method to find variance between regions. Stastical Methods in Geography Rogerson pg 157
-    regions = list(set(region))
-    ptspercell = N.array([N.where(N.array(region) == x)[0].size for x in regions])
-    var = (N.sum((ptspercell - N.mean(ptspercell))**2))/(ptspercell.size-1)   
-    return  var/N.mean(ptspercell)
+#def quadrat(region):
+#    #quadrat method to find variance between regions. Stastical Methods in Geography Rogerson pg 157
+#    regions = list(set(region))
+#    ptspercell = N.array([N.where(N.array(region) == x)[0].size for x in regions])
+#    var = (N.sum((ptspercell - N.mean(ptspercell))**2))/(ptspercell.size-1)   
+#    return  var/N.mean(ptspercell)
     
 class LambObject:
     def __init__(self, indata):
@@ -936,7 +927,7 @@ class LambObject:
                 #print 'ehrererasdfa'
                 
                 
-                if type(obj) == numpy.ma.core.MaskedArray: 
+                if type(obj) == N.ma.core.MaskedArray: 
                      #print 'masked!!!!'
                      mask = N.interp(self.norme,x,N.ma.getmask(obj).astype(float),N.nan,N.nan).round().astype(bool)
                      normdzhold = N.ma.masked_array(normdzhold,mask)
@@ -1010,7 +1001,7 @@ class LambObject:
             new75shold = N.interp(self.norme,x,y75,N.nan,N.nan)
             iqr = new75shold - new25shold 
             #print 'ehrererasdfa'
-            if type(self.dz) == numpy.ma.core.MaskedArray: 
+            if type(self.dz) == N.ma.core.MaskedArray: 
                 #print 'masked!!!!'
                 mask = N.interp(self.norme,x,N.ma.getmask(self.dz).astype(float),N.nan,N.nan).round().astype(bool)
                 normdzhold = N.ma.masked_array(normdzhold,mask)
@@ -1064,7 +1055,7 @@ class LambObject:
 #                #print 'ehrererasdfa'
 #                
 #                
-#                if type(obj) == numpy.ma.core.MaskedArray: 
+#                if type(obj) == N.ma.core.MaskedArray: 
 #                     #print 'masked!!!!'
 #                     mask = N.interp(self.norme,x,N.ma.getmask(obj).astype(float),N.nan,N.nan).round().astype(bool)
 #                     normdzhold = N.ma.masked_array(normdzhold,mask)
@@ -1137,7 +1128,7 @@ class LambObject:
 #            new75shold = N.interp(self.norme,x,y75,N.nan,N.nan)
 #            iqr = new75shold - new25shold 
 #            #print 'ehrererasdfa'
-#            if type(self.dz) == numpy.ma.core.MaskedArray: 
+#            if type(self.dz) == N.ma.core.MaskedArray: 
 #                #print 'masked!!!!'
 #                mask = N.interp(self.norme,x,N.ma.getmask(self.dz).astype(float),N.nan,N.nan).round().astype(bool)
 #                normdzhold = N.ma.masked_array(normdzhold,mask)
@@ -1173,7 +1164,7 @@ class LambObject:
     
         newys2 = N.c_[self.normdz]
    
-        if type(self.normdz[0]) == numpy.ma.core.MaskedArray: 
+        if type(self.normdz[0]) == N.ma.core.MaskedArray: 
             mask = N.c_[[list(N.ma.getmask(x)) for x in self.normdz]]
             newys2 = N.ma.masked_array(newys2,mask)
             
@@ -1187,7 +1178,7 @@ class LambObject:
             #if label != None: label = "%s N=%s" % (label,len(s))
             #newys3 = N.ma.masked_array(newys2,N.isnan(newys2))
     
-        if type(self.normdz[0]) == numpy.ma.core.MaskedArray:
+        if type(self.normdz[0]) == N.ma.core.MaskedArray:
             survIQRs2 = N.c_[self.survIQRs]
             mask = N.c_[[list(N.ma.getmask(x)) for x in self.survIQRs]]
             survIQRs2 = N.ma.masked_array(survIQRs2,mask)
@@ -1232,7 +1223,7 @@ class LambObject:
          
         self.normalp=[] 
         for ty in newys2.T:
-            if type(self.normdz[0]) == numpy.ma.core.MaskedArray: ty = ty.compressed()  # remove masked values since shapiro doesn't deal with masks
+            if type(self.normdz[0]) == N.ma.core.MaskedArray: ty = ty.compressed()  # remove masked values since shapiro doesn't deal with masks
             if ty.size > 2:
                 Wstat,pval1 = stats.shapiro(ty)
                 self.normalp.append(pval1)
@@ -1508,3 +1499,22 @@ class LambObject:
                 self.quartile_3[bottom]=self.quartile_3[replbottom]
                 self.percentile_95[bottom]=self.percentile_95[replbottom]
                 self.interquartile_rng[bottom]=self.interquartile_rng[replbottom]
+                
+def LambToColumn(data):
+
+    out = {}
+    for j,column in enumerate(data[0].keys()):out[column]=[]
+        
+    for i,row in enumerate(data):
+        for j,column in enumerate(row.keys()):
+            out[column].append(row[column])
+    
+    for j,column in enumerate(data[0].keys()):
+        
+        if type(out[column][-1]) == int and type(out[column][0]) == int or \
+        type(out[column][-1]) == float and type(out[column][0]) == float:
+            #print 'yes'
+            try:
+                out[column] = N.array(out[column][:])
+            except:pass
+    return out

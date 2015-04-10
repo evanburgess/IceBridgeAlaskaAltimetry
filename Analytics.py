@@ -1,40 +1,85 @@
 # -*- coding: utf-8 -*-
-import psycopg2
-import xlrd
-import re
-import unicodedata
-import numpy as N
-import datetime as dtm
-import os
-import glob
 import simplekml as kml
-import subprocess
-from types import *
+import psycopg2
+import re
+import numpy as N
+import os
 import matplotlib.pyplot as plt
-import matplotlib.path as mpath
-import matplotlib.patches as mpatches
-import scipy.misc
-import matplotlib
+from scipy.ndimage.filters import gaussian_filter
+import scipy.stats as stats
+import matplotlib as mpl
 import matplotlib.colors as colors
 import matplotlib.colorbar as clbr
 import matplotlib.cm as cmx
-# from mpl_toolkits.basemap import Basemap
 from matplotlib.dates import YearLocator, MonthLocator, DateFormatter
-from scipy.ndimage.filters import gaussian_filter
-import scipy.stats as stats
-import sys
-import ConfigParser
 import time
 import itertools
+from itertools import product as iterproduct
+import sys
+from types import *
 
-cfg = ConfigParser.ConfigParser()
-cfg.read(os.path.dirname(__file__)+'/setup.cfg')
-sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
+from Interface import *
 
-from Altimetry.Interface import *
+#import xlrd
+#import unicodedata
+#import datetime as dtm
+#import glob
+#import subprocess
+#import matplotlib.patches as mpatches
+#import scipy.misc
+#import matplotlib
+#import ConfigParser
+
+#cfg = ConfigParser.ConfigParser()
+#cfg.read(os.path.dirname(__file__)+'/setup.cfg')
+#sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
+#sys.path.append('/Users/igswahwsmcevan/Altimetry/code')
+
+
+#con,curr = ConnectDb()
+
+#def partition_dataset(*args,**kwargs):
+#    
+#
+#    for k in kwargs:
+#        if k not in ['interval_min','interval_max','applytoall']:raise "ERROR: Unidentified keyword present"
+#    lamb = [] 
+#    userwheres=[]
+#    userwheres2=[]
+#    notused = []
+#    notused2 = []
+#    zones=[]
+#    if 'interval_max' in kwargs.keys():intervalsmax = kwargs['interval_max']
+#    else:intervalsmax=30
+#    
+#    if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
+#    else:min_interval=5
+#    
+#    
+#    for items in iterproduct(*list(args)):
+#        userwhere =  " AND ".join(items)
+#
+#        if kwargs:
+#            if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
+#            userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
+#            
+#        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
+#        if type(out)!=NoneType:
+#            userwheres2.append(userwhere2)
+#            userwheres.append(userwhere)
+#            lamb.append(out)
+#            lamb[-1].fix_terminus()
+#            lamb[-1].remove_upper_extrap()
+#            lamb[-1].normalize_elevation()
+#            lamb[-1].calc_dz_stats()
+#            lamb[-1].extend_upper_extrap()
+#            lamb[-1].calc_mb()
+#        else:
+#            notused.append(userwhere)
+#            notused2.append(userwhere2)
+#    return lamb,userwheres2,notused2,userwheres,notused
 
 def coords_to_polykml (outputfile, inpt,inner=None, name=None,setcolors=None):
-
 
     colors = ['e6d8ad','8A2BE2','A52A2A','DEB887','5F9EA0','7FFF00','D2691E','FF7F50','6495ED','FFF8DC','DC143C','00FFFF','00008B','008B8B','B8860B','A9A9A9','006400','BDB76B','8B008B','556B2F','FF8C00','9932CC','8B0000','E9967A','8FBC8F','483D8B','2F4F4F','00CED1','9400D3','FF1493','00BFFF','696969','1E90FF','B22222','FFFAF0','228B22','FF00FF','DCDCDC','F8F8FF','FFD700','DAA520','808080']        
     print len(colors)
@@ -330,26 +375,9 @@ def extract_records(data, field,value,operator = '=='):
             if one[field] != value:ext.append(data[i])
     return ext
     
-def LambToColumn(data):
 
-    out = {}
-    for j,column in enumerate(data[0].keys()):out[column]=[]
-        
-    for i,row in enumerate(data):
-        for j,column in enumerate(row.keys()):
-            out[column].append(row[column])
     
-    for j,column in enumerate(data[0].keys()):
-        
-        if type(out[column][-1]) == int and type(out[column][0]) == int or \
-        type(out[column][-1]) == float and type(out[column][0]) == float:
-            #print 'yes'
-            try:
-                out[column] = N.array(out[column][:])
-            except:pass
-    return out
-    
-# def mapLamb(s, scale,colorbar = matplotlib.cm.spectral,
+# def mapLamb(s, scale,colorbar = mpl.cm.spectral,
 #     resolution = 'i',position = [0.03,0.03,0.90,0.92],outfile = None,
 #     dpi = 300,landcolor = '#f0f0f0',backgroundcolor = 'white',title = None,
 #     colorbarlabel = None,colorrng = None,show=False):
@@ -365,7 +393,7 @@ def LambToColumn(data):
 #     by_column = True.
 #
 # Usage:
-#     lambobject, scale,colorbar = matplotlib.cm.spectral,
+#     lambobject, scale,colorbar = mpl.cm.spectral,
 #     resolution = 'i',position = [0.03,0.03,0.90,0.92],outfile = None,
 #     dpi = 300,landcolor = '#f0f0f0',backgroundcolor = 'white',title = None,
 #     colorbarlabel = None,colorrng = None,show=True
@@ -375,7 +403,7 @@ def LambToColumn(data):
 #
 #     scale              The LambObject attribute to be used in coloring glaciers
 #
-#     colorbar           Colorscale specify a matplotlib color map DEFAULT:matplotlib.cm.spectral
+#     colorbar           Colorscale specify a matplotlib color map DEFAULT:mpl.cm.spectral
 #
 #     resolution         The finess of the coastlines drawn.  Options are from low to high:
 #                        c,l,i,h or f DEFAULT: i
@@ -474,7 +502,7 @@ def LambToColumn(data):
 #     if not outfile == None:
 #         fig.savefig(outfile, dpi=dpi)
 #         plt.close()
-def PlotIntervals(data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = matplotlib.cm.RdYlBu,colorrng = None,ticklabelsize=13,categorysize=15):
+def PlotIntervals(data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = mpl.cm.RdYlBu,colorrng = None,ticklabelsize=13,categorysize=15):
     """====================================================================================================
 Altimetry.Analytics.PlotIntervals
 
@@ -572,7 +600,7 @@ Usage:PlotIntervals(data,outputfile=None,show=True)
         plt.close()
     if show:plt.show()
     
-def PlotIntervals2(ax,data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = matplotlib.cm.RdYlBu,colorrng = None,ticklabelsize=13,categorysize=15):
+def PlotIntervals2(ax,data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = mpl.cm.RdYlBu,colorrng = None,ticklabelsize=13,categorysize=15):
     """====================================================================================================
 Altimetry.Analytics.PlotIntervals
 
@@ -679,7 +707,7 @@ Usage:PlotIntervals(data,outputfile=None,show=True)
     #    plt.close()
     #if show:plt.show()
     
-def PlotIntervalsByType(data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = matplotlib.cm.RdYlBu,colorrng = None,ticklabelsize=13):
+def PlotIntervalsByType(data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = mpl.cm.RdYlBu,colorrng = None,ticklabelsize=13):
     """====================================================================================================
 Altimetry.Analytics.PlotIntervals
 
@@ -1127,234 +1155,232 @@ def fix_terminus(lambobj,slope=-0.05,error=1):
 #        conn.close()
 #        return out
 
-def extrapolate2(groups,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, resulttable='resultsauto',export_shp=None,export_csv=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
-    
-    cfg = ConfigParser.ConfigParser()
-    cfg.read(os.path.dirname(__file__)+'/setup.cfg')
-    sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
-
-    from Altimetry.Interface import *
-    
-    for grp in groups:
-        if not hasattr(grp,'interquartile_rng'):raise "Run statistics on groups first"
-    
-    #print 'connecting'    
-    conn,cur = ConnectDb()
-    cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
-    conn.commit()
-
-    #print 'creating'
-    cur.execute("CREATE TABLE %s (gid serial PRIMARY KEY,curveid numeric,normelev real,gltype int,mean double precision,median real,std real,sem real,quadsum real, iqr real,stdlow real, stdhigh real, q1 real,q3 real,perc5 real,perc95 real);" % extrap_tbl)
-    conn.commit()
-
-    for grp in groups:
-    
-        #l=0.11
-        #w=0.8
-        #
-        #fig = plt.figure(figsize=[6,10])
-        #ax = fig.add_axes([l,0.56,w,0.4])
-        #ax.set_ylabel('Balance (m w.e./yr)')
-        #ax.set_ylim([-10,3])
-        #ax.set_xlim([0,1])
-        #ax.set_title('Dz for %s Glaciers  Gltype code %s' % (outroot[j],gltype[j]))
-        #color = 'r'
-        #ax.plot(grp.norme,grp.dzs_mean,'-%s' % color,linewidth=2)
-        #ax.plot(grp.norme,grp.dzs_median,'--%s' % color,linewidth=2)
-        #ax.plot(grp.norme,grp.dzs_median-grp.dzs_madn,'-%s' % color,linewidth=0.7)
-        #ax.plot(grp.norme,grp.dzs_median+grp.dzs_madn,'-%s' % color,linewidth=0.7)
-        #ax.fill_between(grp.norme,grp.dzs_mean+grp.dzs_std,grp.dzs_mean-grp.dzs_std,alpha=0.2,color=color,lw=0)
-        ##for profile in grp.normdz: 
-        #ax.plot(grp.norme,grp.normdz[3],'-r',alpha=0.2)
-        #plt.legend(loc='upper center', bbox_to_anchor=(0.24, -0.1),ncol=1, fancybox=True, shadow=True)
-        #plt.show()
-
-        gltype = grp.gltype
-
-        if not all([x == gltype[0] for x in gltype]): 
-            raise "All in group are not same glacier type."
-        else:
-            gltype = gltype[0]
-        
-        stdlow = grp.dzs_mean-grp.dzs_std
-        stdhigh = grp.dzs_mean+grp.dzs_std
-
-
-        for i in xrange(len(grp.norme)):
-            #print "INSERT INTO extrapolation_curves (normelev,gltype,mean,median,std,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%1.0f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (grp.norme[i],gltype[j],grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i])
-            cur.execute("INSERT INTO %s (curveid,normelev,gltype,mean,median,std,sem,quadsum,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%4.2f','%1.0f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (extrap_tbl,gltype*10+grp.norme[i],grp.norme[i],gltype,grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.dzs_sem[i],grp.quadsum[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i]))
-            if abs(grp.norme[i]-0.99)<0.0001:cur.execute("INSERT INTO %s (curveid,normelev,gltype,mean,median,std,sem,quadsum,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%4.2f','%1.0f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (extrap_tbl,gltype*10+grp.norme[i],1.,gltype,grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.dzs_sem[i],grp.quadsum[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i]))
-            conn.commit()
-    cur.execute("DROP INDEX IF EXISTS curveid_index;")
-    cur.execute("CREATE INDEX curveid_index ON %s (curveid);" % extrap_tbl)
-    
-    
-    glimsidlist =[item for sublist in [grp.glimsid for grp in groups] for item in sublist]
-    #print [item for sublist in [grp.name for grp in groups] for item in sublist]
-    
+#def extrapolate2(groups,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, resulttable='resultsauto',export_shp=None,export_csv=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
+#    
+#    cfg = ConfigParser.ConfigParser()
+#    cfg.read(os.path.dirname(__file__)+'/setup.cfg')
+#    sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
+#
+#    for grp in groups:
+#        if not hasattr(grp,'interquartile_rng'):raise "Run statistics on groups first"
+#    
+#    #print 'connecting'    
+#    conn,cur = ConnectDb()
+#    cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
+#    conn.commit()
+#
+#    #print 'creating'
+#    cur.execute("CREATE TABLE %s (gid serial PRIMARY KEY,curveid numeric,normelev real,gltype int,mean double precision,median real,std real,sem real,quadsum real, iqr real,stdlow real, stdhigh real, q1 real,q3 real,perc5 real,perc95 real);" % extrap_tbl)
+#    conn.commit()
+#
+#    for grp in groups:
+#    
+#        #l=0.11
+#        #w=0.8
+#        #
+#        #fig = plt.figure(figsize=[6,10])
+#        #ax = fig.add_axes([l,0.56,w,0.4])
+#        #ax.set_ylabel('Balance (m w.e./yr)')
+#        #ax.set_ylim([-10,3])
+#        #ax.set_xlim([0,1])
+#        #ax.set_title('Dz for %s Glaciers  Gltype code %s' % (outroot[j],gltype[j]))
+#        #color = 'r'
+#        #ax.plot(grp.norme,grp.dzs_mean,'-%s' % color,linewidth=2)
+#        #ax.plot(grp.norme,grp.dzs_median,'--%s' % color,linewidth=2)
+#        #ax.plot(grp.norme,grp.dzs_median-grp.dzs_madn,'-%s' % color,linewidth=0.7)
+#        #ax.plot(grp.norme,grp.dzs_median+grp.dzs_madn,'-%s' % color,linewidth=0.7)
+#        #ax.fill_between(grp.norme,grp.dzs_mean+grp.dzs_std,grp.dzs_mean-grp.dzs_std,alpha=0.2,color=color,lw=0)
+#        ##for profile in grp.normdz: 
+#        #ax.plot(grp.norme,grp.normdz[3],'-r',alpha=0.2)
+#        #plt.legend(loc='upper center', bbox_to_anchor=(0.24, -0.1),ncol=1, fancybox=True, shadow=True)
+#        #plt.show()
+#
+#        gltype = grp.gltype
+#
+#        if not all([x == gltype[0] for x in gltype]): 
+#            raise "All in group are not same glacier type."
+#        else:
+#            gltype = gltype[0]
+#        
+#        stdlow = grp.dzs_mean-grp.dzs_std
+#        stdhigh = grp.dzs_mean+grp.dzs_std
+#
+#
+#        for i in xrange(len(grp.norme)):
+#            #print "INSERT INTO extrapolation_curves (normelev,gltype,mean,median,std,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%1.0f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (grp.norme[i],gltype[j],grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i])
+#            cur.execute("INSERT INTO %s (curveid,normelev,gltype,mean,median,std,sem,quadsum,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%4.2f','%1.0f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (extrap_tbl,gltype*10+grp.norme[i],grp.norme[i],gltype,grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.dzs_sem[i],grp.quadsum[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i]))
+#            if abs(grp.norme[i]-0.99)<0.0001:cur.execute("INSERT INTO %s (curveid,normelev,gltype,mean,median,std,sem,quadsum,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%4.2f','%1.0f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (extrap_tbl,gltype*10+grp.norme[i],1.,gltype,grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.dzs_sem[i],grp.quadsum[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i]))
+#            conn.commit()
+#    cur.execute("DROP INDEX IF EXISTS curveid_index;")
+#    cur.execute("CREATE INDEX curveid_index ON %s (curveid);" % extrap_tbl)
+#    
+#    
+#    glimsidlist =[item for sublist in [grp.glimsid for grp in groups] for item in sublist]
+#    #print [item for sublist in [grp.name for grp in groups] for item in sublist]
+#    
+##    bigselect = """
+##SELECT ergi.name,eb.glimsid,ergi.gltype,ergi.area as glarea, eb.bins,eb.normbins,eb.area,ext.mean,ext.median,ext.std,
+##ext.sem,ext.quadsum,ext.iqr,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,
+##eb.area*ext.mean as volchange,0 as surveyed, ext.sem as error, eb.geom into %s 
+##from ergibins2 as eb inner join ergi on eb.glimsid=ergi.glimsid
+##left join %s as ext on (ergi.gltype*10+eb.normbins)::numeric=round((ext.gltype*10+ext.normelev)::numeric,2)
+##WHERE ergi.glimsid NOT IN ('%s')
+##UNION
+##SELECT ergi.name,eb.glimsid,ergi.gltype,ergi.area as glarea, eb.bins,eb.normbins,eb.area,ext.mean,ext.median,ext.std,
+##ext.sem,ext.quadsum,ext.iqr,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,
+##eb.area*ext.mean as volchange,1 as surveyed, ext.quadsum as error, eb.geom 
+##from ergibins2 as eb inner join ergi on eb.glimsid=ergi.glimsid
+##left join %s as ext on (ergi.gltype*10+eb.normbins)::numeric=round((ext.gltype*10+ext.normelev)::numeric,2)
+##WHERE ergi.glimsid IN ('%s');"""  % (resulttable, extrap_tbl,"','".join(glimsidlist), extrap_tbl,"','".join(glimsidlist))
+#
 #    bigselect = """
 #SELECT ergi.name,eb.glimsid,ergi.gltype,ergi.area as glarea, eb.bins,eb.normbins,eb.area,ext.mean,ext.median,ext.std,
-#ext.sem,ext.quadsum,ext.iqr,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,
-#eb.area*ext.mean as volchange,0 as surveyed, ext.sem as error, eb.geom into %s 
-#from ergibins2 as eb inner join ergi on eb.glimsid=ergi.glimsid
-#left join %s as ext on (ergi.gltype*10+eb.normbins)::numeric=round((ext.gltype*10+ext.normelev)::numeric,2)
+#ext.sem::double precision,ext.quadsum::double precision,ext.iqr::double precision,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,eb.curveid as ebcurve,ext.curveid,
+#eb.area*ext.mean::double precision as volchange,false as surveyed, ext.sem::double precision as error, eb.albersgeom into %s 
+#from ergibins3 as eb inner join ergi on eb.glimsid=ergi.glimsid
+#left join %s as ext on eb.curveid=ext.curveid
 #WHERE ergi.glimsid NOT IN ('%s')
 #UNION
 #SELECT ergi.name,eb.glimsid,ergi.gltype,ergi.area as glarea, eb.bins,eb.normbins,eb.area,ext.mean,ext.median,ext.std,
-#ext.sem,ext.quadsum,ext.iqr,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,
-#eb.area*ext.mean as volchange,1 as surveyed, ext.quadsum as error, eb.geom 
-#from ergibins2 as eb inner join ergi on eb.glimsid=ergi.glimsid
-#left join %s as ext on (ergi.gltype*10+eb.normbins)::numeric=round((ext.gltype*10+ext.normelev)::numeric,2)
+#ext.sem::double precision,ext.quadsum::double precision,ext.iqr::double precision,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,eb.curveid as ebcurve,ext.curveid,
+#eb.area*ext.mean::double precision as volchange,true as surveyed, ext.quadsum::double precision as error, eb.albersgeom 
+#from ergibins3 as eb inner join ergi on eb.glimsid=ergi.glimsid
+#left join %s as ext on eb.curveid=ext.curveid
 #WHERE ergi.glimsid IN ('%s');"""  % (resulttable, extrap_tbl,"','".join(glimsidlist), extrap_tbl,"','".join(glimsidlist))
-
-    bigselect = """
-SELECT ergi.name,eb.glimsid,ergi.gltype,ergi.area as glarea, eb.bins,eb.normbins,eb.area,ext.mean,ext.median,ext.std,
-ext.sem::double precision,ext.quadsum::double precision,ext.iqr::double precision,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,eb.curveid as ebcurve,ext.curveid,
-eb.area*ext.mean::double precision as volchange,false as surveyed, ext.sem::double precision as error, eb.albersgeom into %s 
-from ergibins3 as eb inner join ergi on eb.glimsid=ergi.glimsid
-left join %s as ext on eb.curveid=ext.curveid
-WHERE ergi.glimsid NOT IN ('%s')
-UNION
-SELECT ergi.name,eb.glimsid,ergi.gltype,ergi.area as glarea, eb.bins,eb.normbins,eb.area,ext.mean,ext.median,ext.std,
-ext.sem::double precision,ext.quadsum::double precision,ext.iqr::double precision,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,eb.curveid as ebcurve,ext.curveid,
-eb.area*ext.mean::double precision as volchange,true as surveyed, ext.quadsum::double precision as error, eb.albersgeom 
-from ergibins3 as eb inner join ergi on eb.glimsid=ergi.glimsid
-left join %s as ext on eb.curveid=ext.curveid
-WHERE ergi.glimsid IN ('%s');"""  % (resulttable, extrap_tbl,"','".join(glimsidlist), extrap_tbl,"','".join(glimsidlist))
-
-    #print bigselect
-    
-    start_time = time.time()
-
-
-    print "Producing Results Table!"
-    sys.stdout.flush()
-    cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
-    cur.execute(bigselect)
-    conn.commit()
-    cur.execute("CREATE INDEX glimid_index ON %s (glimsid);" % resulttable)
-    cur.execute("CREATE INDEX normbins_index ON %s (normbins);" % resulttable)
-    
-    #MULTIPLYING THE ERROR FOR TIDEWATERS BY 2 TO ACCOUNT FOR THE POOR DISTRIBUTION (THIS IS DISCUSSED IN THE PAPER)
-    cur.execute("UPDATE %s SET error = error*1.5 WHERE gltype='1' AND surveyed='f';" % resulttable)
-    
-    
-    cur.execute("ALTER TABLE resultsauto add column singl_std real DEFAULT NULL;")   # this is to put the stdev of the xpts for surveyed glaciers rather than the std dev of the group
-    conn.commit()
-    print "Joining ergibins3 took",time.time() - start_time,'seconds'
-    sys.stdout.flush()
-    #cur.execute("VACUUM ANALYZE;")
-     
-    #INSERTING SURVEYED GLACIER DATA
-    if type(insert_surveyed_data) != NoneType:
-    #s2 = GetLambData(verbose=False,longest_interval=True,interval_min=min_interval,by_column=True,as_object=True)
-    #s2.fix_terminus()
-    #s2.normalize_elevation()
-    #s2.calc_dz_stats()
-        print "Insert surveyed Data"
-        sys.stdout.flush()
-        start_time = time.time()
-    #LOOPING THROUGH EACH GLIMS ID
-        for i in xrange(len(insert_surveyed_data.normdz)):
-            #print insert_surveyed_data.name[i]
-            data = GetSqlData2("SELECT normbins::real FROM %s WHERE glimsid = '%s'" % (resulttable,insert_surveyed_data.glimsid[i]))['normbins']
-            #if insert_surveyed_data.glimsid[i]=='G212334E61307N':print data
-            uninormbins = N.unique(data)
-            indices = (uninormbins*100).astype(int)
-            indices = N.where(indices > 99,99,indices)
-            indices = N.where(indices < 0,0,indices)
-            
-            #print i,indices
-            #sys.stdout.flush()
-            #insert_surveyed_data.normdz[i]
-            #not every glacier will have a bin for every normalized elevation band from 0.01 to 0.99 so we are selecting the survey data for only those bands that the 
-            #binned rgi has
-            surveyed = [insert_surveyed_data.normdz[i][indc] for indc in indices]
-            print surveyed
-            print len(surveyed)
-            normstd = [insert_surveyed_data.survIQRs[i][indc]*0.7413 for indc in indices]
-            #normstd = [insert_surveyed_data.survIQRs[i][indc] for indc in indices]
-            
-            for j in xrange(len(surveyed)):
-                
-                #if insert_surveyed_data.glimsid[i]=='G212334E61307N':print       "UPDATE %s SET mean = %s,surveyed='t' WHERE glimsid='%s' AND normbins = %s;" % (resulttable,surveyed[j],insert_surveyed_data.glimsid[i],uninormbins[j])
-                cur.execute("UPDATE %s SET mean = %s,surveyed='t',singl_std=%s WHERE glimsid='%s' AND normbins = %s;" % (resulttable,surveyed[j],normstd[j],insert_surveyed_data.glimsid[i],uninormbins[j]))
-            
-            conn.commit()
-        print "Insert surveyed Data took",time.time() - start_time,'seconds'
-        sys.stdout.flush()
-        print "here * %s *" % export_shp
-    if type(export_shp) != NoneType:
-        start_time = time.time()
-        print "Exporting To Shpfile"
-        sys.stdout.flush()
-        os.system("%s -f %s -h localhost altimetry %s" % (cfg.get('Section One', 'pgsql2shppath'),export_shp,resulttable))
-        print "Exporting To Shpfile took",time.time() - start_time,'seconds'
-    if type(export_csv) != NoneType:
-        print "Exporting to CSV"
-        sys.stdout.flush()                                                                                                                                    
-        #THESE ONES ARE OLD AND INCORRECT SAVING JUST IN CASE
-        #cur.execute("COPY (SELECT surveyed, SUM(area)/1000000. as area,        SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY surveyed ORDER BY surveyed) TO '%s/final_results_divd_surveyed.csv' DELIMITER ',' CSV HEADER;" %               (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        #cur.execute("COPY (SELECT gltype, surveyed,SUM(area)/1000000. as area, SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype,surveyed ORDER BY gltype,surveyed) TO '%s/final_results_divd_surveyed_gltype.csv' DELIMITER ',' CSV HEADER;" % (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        #cur.execute("COPY (SELECT gltype, SUM(area)/1000000. as area,          SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype ORDER BY gltype) TO '%s/final_results_divd_gltype.csv' DELIMITER ',' CSV HEADER;" %                   (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csvpe)))
-        #cur.execute("COPY (SELECT SUM(area)/1000000. as area,                  SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s) TO '%s/final_results_one_group.csv' DELIMITER ',' CSV HEADER;" %                                     (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        cur.execute("COPY (SELECT surveyed,         SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed ORDER BY surveyed) TO '%s/final_results_divd_surveyed.csv' DELIMITER ',' CSV HEADER;" %                      (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        cur.execute("COPY (SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed ORDER BY gltype,surveyed) TO '%s/final_results_divd_surveyed_gltype.csv' DELIMITER ',' CSV HEADER;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        cur.execute("COPY (SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype ORDER BY gltype) TO '%s/final_results_divd_gltype.csv' DELIMITER ',' CSV HEADER;" %                            (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        cur.execute("COPY (SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s) TO '%s/final_results_one_group.csv' DELIMITER ',' CSV HEADER;" %                                                              (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        
-        files = ['final_results_one_group.csv','final_results_divd_gltype.csv','final_results_divd_surveyed_gltype.csv','final_results_divd_surveyed.csv'] 
-        out = open(export_csv,'w')
-        
-        
-        for ope in files:
-            f = open("%s/%s" % (os.path.dirname(export_csv),ope),'r')
-            for i in f:
-                i=re.sub('^0,','Land,',i)
-                i=re.sub('^1,','Tidewater,',i)
-                i=re.sub('^2,','Lake,',i)
-                out.write(i)
-            os.remove("%s/%s" % (os.path.dirname(export_csv,ope)))
-            out.write('\n\n')
-        out.close() 
-        
-        
-        
-        if not keep_postgres_tbls:
-            cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
-            cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
-            conn.commit()
-        cur.close()
-        conn.close()
-
-    else:
-        print "Summing up totals" 
-        sys.stdout.flush()
-        start_time = time.time()
-        out = {}
-        #THESE ARE OLD AND BAD
-        #out['bysurveyed'] =    GetSqlData2("SELECT surveyed, SUM(area)/1000000.::real as area,        SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY surveyed;" %        (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
-        #out['bytype_survey'] = GetSqlData2("SELECT gltype, surveyed,SUM(area)/1000000. as area, SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
-        #out['bytype'] =        GetSqlData2("SELECT gltype, SUM(area)/1000000. as area,          SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
-        #out['all'] =           GetSqlData2("SELECT SUM(area)/1000000. as area,                  SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s;" %                          (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
-        
-        out['bysurveyed'] =    GetSqlData2("SELECT surveyed,         SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed;" %         (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
-        out['bytype_survey'] = GetSqlData2("SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
-        out['bytype'] =        GetSqlData2("SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
-        out['all'] =           GetSqlData2("SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s;" %                          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
-
-        
-        print "Summing up totals",time.time() - start_time,'seconds'
-        sys.stdout.flush()
-        #print out['bytype_survey']
-        
-        if not keep_postgres_tbls:
-            cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
-            cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
-            conn.commit()
-        cur.close()
-        conn.close()
-        return out
+#
+#    #print bigselect
+#    
+#    start_time = time.time()
+#
+#
+#    print "Producing Results Table!"
+#    sys.stdout.flush()
+#    cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
+#    cur.execute(bigselect)
+#    conn.commit()
+#    cur.execute("CREATE INDEX glimid_index ON %s (glimsid);" % resulttable)
+#    cur.execute("CREATE INDEX normbins_index ON %s (normbins);" % resulttable)
+#    
+#    #MULTIPLYING THE ERROR FOR TIDEWATERS BY 2 TO ACCOUNT FOR THE POOR DISTRIBUTION (THIS IS DISCUSSED IN THE PAPER)
+#    cur.execute("UPDATE %s SET error = error*1.5 WHERE gltype='1' AND surveyed='f';" % resulttable)
+#    
+#    
+#    cur.execute("ALTER TABLE resultsauto add column singl_std real DEFAULT NULL;")   # this is to put the stdev of the xpts for surveyed glaciers rather than the std dev of the group
+#    conn.commit()
+#    print "Joining ergibins3 took",time.time() - start_time,'seconds'
+#    sys.stdout.flush()
+#    #cur.execute("VACUUM ANALYZE;")
+#     
+#    #INSERTING SURVEYED GLACIER DATA
+#    if type(insert_surveyed_data) != NoneType:
+#    #s2 = GetLambData(verbose=False,longest_interval=True,interval_min=min_interval,by_column=True,as_object=True)
+#    #s2.fix_terminus()
+#    #s2.normalize_elevation()
+#    #s2.calc_dz_stats()
+#        print "Insert surveyed Data"
+#        sys.stdout.flush()
+#        start_time = time.time()
+#    #LOOPING THROUGH EACH GLIMS ID
+#        for i in xrange(len(insert_surveyed_data.normdz)):
+#            #print insert_surveyed_data.name[i]
+#            data = GetSqlData2("SELECT normbins::real FROM %s WHERE glimsid = '%s'" % (resulttable,insert_surveyed_data.glimsid[i]))['normbins']
+#            #if insert_surveyed_data.glimsid[i]=='G212334E61307N':print data
+#            uninormbins = N.unique(data)
+#            indices = (uninormbins*100).astype(int)
+#            indices = N.where(indices > 99,99,indices)
+#            indices = N.where(indices < 0,0,indices)
+#            
+#            #print i,indices
+#            #sys.stdout.flush()
+#            #insert_surveyed_data.normdz[i]
+#            #not every glacier will have a bin for every normalized elevation band from 0.01 to 0.99 so we are selecting the survey data for only those bands that the 
+#            #binned rgi has
+#            surveyed = [insert_surveyed_data.normdz[i][indc] for indc in indices]
+#            print surveyed
+#            print len(surveyed)
+#            normstd = [insert_surveyed_data.survIQRs[i][indc]*0.7413 for indc in indices]
+#            #normstd = [insert_surveyed_data.survIQRs[i][indc] for indc in indices]
+#            
+#            for j in xrange(len(surveyed)):
+#                
+#                #if insert_surveyed_data.glimsid[i]=='G212334E61307N':print       "UPDATE %s SET mean = %s,surveyed='t' WHERE glimsid='%s' AND normbins = %s;" % (resulttable,surveyed[j],insert_surveyed_data.glimsid[i],uninormbins[j])
+#                cur.execute("UPDATE %s SET mean = %s,surveyed='t',singl_std=%s WHERE glimsid='%s' AND normbins = %s;" % (resulttable,surveyed[j],normstd[j],insert_surveyed_data.glimsid[i],uninormbins[j]))
+#            
+#            conn.commit()
+#        print "Insert surveyed Data took",time.time() - start_time,'seconds'
+#        sys.stdout.flush()
+#        print "here * %s *" % export_shp
+#    if type(export_shp) != NoneType:
+#        start_time = time.time()
+#        print "Exporting To Shpfile"
+#        sys.stdout.flush()
+#        os.system("%s -f %s -h localhost altimetry %s" % (cfg.get('Section One', 'pgsql2shppath'),export_shp,resulttable))
+#        print "Exporting To Shpfile took",time.time() - start_time,'seconds'
+#    if type(export_csv) != NoneType:
+#        print "Exporting to CSV"
+#        sys.stdout.flush()                                                                                                                                    
+#        #THESE ONES ARE OLD AND INCORRECT SAVING JUST IN CASE
+#        #cur.execute("COPY (SELECT surveyed, SUM(area)/1000000. as area,        SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY surveyed ORDER BY surveyed) TO '%s/final_results_divd_surveyed.csv' DELIMITER ',' CSV HEADER;" %               (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
+#        #cur.execute("COPY (SELECT gltype, surveyed,SUM(area)/1000000. as area, SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype,surveyed ORDER BY gltype,surveyed) TO '%s/final_results_divd_surveyed_gltype.csv' DELIMITER ',' CSV HEADER;" % (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
+#        #cur.execute("COPY (SELECT gltype, SUM(area)/1000000. as area,          SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype ORDER BY gltype) TO '%s/final_results_divd_gltype.csv' DELIMITER ',' CSV HEADER;" %                   (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csvpe)))
+#        #cur.execute("COPY (SELECT SUM(area)/1000000. as area,                  SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s) TO '%s/final_results_one_group.csv' DELIMITER ',' CSV HEADER;" %                                     (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
+#        cur.execute("COPY (SELECT surveyed,         SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed ORDER BY surveyed) TO '%s/final_results_divd_surveyed.csv' DELIMITER ',' CSV HEADER;" %                      (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
+#        cur.execute("COPY (SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed ORDER BY gltype,surveyed) TO '%s/final_results_divd_surveyed_gltype.csv' DELIMITER ',' CSV HEADER;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
+#        cur.execute("COPY (SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype ORDER BY gltype) TO '%s/final_results_divd_gltype.csv' DELIMITER ',' CSV HEADER;" %                            (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
+#        cur.execute("COPY (SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s) TO '%s/final_results_one_group.csv' DELIMITER ',' CSV HEADER;" %                                                              (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
+#        
+#        files = ['final_results_one_group.csv','final_results_divd_gltype.csv','final_results_divd_surveyed_gltype.csv','final_results_divd_surveyed.csv'] 
+#        out = open(export_csv,'w')
+#        
+#        
+#        for ope in files:
+#            f = open("%s/%s" % (os.path.dirname(export_csv),ope),'r')
+#            for i in f:
+#                i=re.sub('^0,','Land,',i)
+#                i=re.sub('^1,','Tidewater,',i)
+#                i=re.sub('^2,','Lake,',i)
+#                out.write(i)
+#            os.remove("%s/%s" % (os.path.dirname(export_csv,ope)))
+#            out.write('\n\n')
+#        out.close() 
+#        
+#        
+#        
+#        if not keep_postgres_tbls:
+#            cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
+#            cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
+#            conn.commit()
+#        cur.close()
+#        conn.close()
+#
+#    else:
+#        print "Summing up totals" 
+#        sys.stdout.flush()
+#        start_time = time.time()
+#        out = {}
+#        #THESE ARE OLD AND BAD
+#        #out['bysurveyed'] =    GetSqlData2("SELECT surveyed, SUM(area)/1000000.::real as area,        SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY surveyed;" %        (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
+#        #out['bytype_survey'] = GetSqlData2("SELECT gltype, surveyed,SUM(area)/1000000. as area, SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
+#        #out['bytype'] =        GetSqlData2("SELECT gltype, SUM(area)/1000000. as area,          SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
+#        #out['all'] =           GetSqlData2("SELECT SUM(area)/1000000. as area,                  SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s;" %                          (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
+#        
+#        out['bysurveyed'] =    GetSqlData2("SELECT surveyed,         SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed;" %         (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
+#        out['bytype_survey'] = GetSqlData2("SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
+#        out['bytype'] =        GetSqlData2("SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
+#        out['all'] =           GetSqlData2("SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s;" %                          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
+#
+#        
+#        print "Summing up totals",time.time() - start_time,'seconds'
+#        sys.stdout.flush()
+#        #print out['bytype_survey']
+#        
+#        if not keep_postgres_tbls:
+#            cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
+#            cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
+#            conn.commit()
+#        cur.close()
+#        conn.close()
+#        return out
 
 def extrapolate3(groups,selections,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, resulttable='resultsauto',export_shp=None,export_csv=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
     
@@ -1362,8 +1388,6 @@ def extrapolate3(groups,selections,insert_surveyed_data=None, extrap_tbl='extrap
     cfg.read(os.path.dirname(__file__)+'/setup.cfg')
     sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
-    from Altimetry.Interface import *
-    
     for grp in groups:
         if not hasattr(grp,'interquartile_rng'):raise "Run statistics on groups first"
     
@@ -1644,4 +1668,3 @@ def full_plot_extrapolation_curves(data,samples_lim=None,err_lim=None,title=None
     plt.show()
 
     return ax,ax2,ax3,ax4,ax5
-  
