@@ -1,1 +1,12 @@
 *.pyc
+*.jpg
+*.shp
+*.shx
+*.prj
+*.dbf
+*.eps
+*.ai
+*.pdf
+*.png
+*.xlsx
+*.txt

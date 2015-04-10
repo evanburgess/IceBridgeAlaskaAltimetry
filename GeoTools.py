@@ -57,7 +57,7 @@ def build_lat_lon_grids(xsize,ysize,projectionwkt,geotransform):
     lon = N.reshape(lon,[ysize, xsize])
     
     return lat,lon
-    
+  
 def pix_to_coord(transform,x1,y1=None):
 
     if type(x1) == float or type(x1) == int:

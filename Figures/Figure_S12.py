@@ -53,9 +53,10 @@ def partition_dataset(*args,**kwargs):
     
     if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
     else:min_interval=5
-    
+    print 'h'
     from itertools import product
     for items in product(*list(args)):
+        print items
         userwhere =  " AND ".join(items)
 
         if kwargs:
@@ -78,66 +79,66 @@ def partition_dataset(*args,**kwargs):
             notused2.append(userwhere2)
     return lamb,userwheres2,notused2,userwheres,notused
     #return 1,2,3
-
-    
-def plotthis(data):
-    fig = plt.figure(figsize=[10,8])
-    ax = fig.add_axes([0.11,0.31,0.74,0.6])
-    for line in data.normdz:pl1 = ax.plot(data.norme, line,'r-',alpha=0.2)
-    pl1 = ax.plot(data.norme, data.dzs_mean,'k-')
-    pl2 = ax.plot(data.norme, data.dzs_mean-data.dzs_sem,'k--',data.norme, data.dzs_mean+data.dzs_sem,'k--')    
-    plt.show()
-    
-def partitionbox(axes,data,center,totalwidth,spacing,cchoice,boxwidth=None,showfliers=True):
-    
-    if type(boxwidth)==NoneType:boxwidth = (totalwidth-spacing*(len(data)-1))/len(data)
-    
-    if len(data)>1:positions = N.linspace(center-totalwidth/2+boxwidth/2,center+totalwidth/2-boxwidth/2,len(data))
-    else:positions=center
-    
-    if showfliers:fly = 'o'
-    else:fly=''
-    box = axes.boxplot(data,positions=positions,widths=boxwidth,sym=fly,patch_artist=True,whis=[5,95])
-    
-    for clr,bx in zip(cchoice,box['boxes']):
-        bx.set_facecolor(clr)
-        bx.set_edgecolor(clr)
-    for bx in box['medians']:
-        bx.set_color(color='k')
-        bx.set_lw(1)
-    for i,bx in enumerate(box['caps']):
-        #bx.set_color(color=N.repeat(colorlist,2,axis=0)[i])
-        bx.set_lw(0)
-    for clr,bx in zip([x1 for pair in zip(cchoice,cchoice) for x1 in pair],box['whiskers']):
-        bx.set_color(color=clr)
-        bx.set_ls('-')
-        bx.set_lw(2)
-    
-    if showfliers:
-        for clr,bx in zip(cchoice,box['fliers']):
-            bx.set_markerfacecolor(clr)
-            bx.set_markeredgecolor(clr)
-            bx.set_markeredgewidth(0.5)
-            bx.set_markersize(3)
-            bx.set_alpha(0.5)
-
-
-                
-    return box
-
-def set_colors(allwhere,condition,usethis,colors=None):
-    
-    if type(colors)==NoneType:colors=N.repeat('0.5',len(allwhere))
-    
-    a=[]
-    for i,boo in enumerate([re.search(condition,i)!=None for i in allwhere]):
-
-        if boo:a.append(usethis)
-        else:a.append(colors[i])
-    return a
-
-
-    
+#
+#    
+#def plotthis(data):
+#    fig = plt.figure(figsize=[10,8])
+#    ax = fig.add_axes([0.11,0.31,0.74,0.6])
+#    for line in data.normdz:pl1 = ax.plot(data.norme, line,'r-',alpha=0.2)
+#    pl1 = ax.plot(data.norme, data.dzs_mean,'k-')
+#    pl2 = ax.plot(data.norme, data.dzs_mean-data.dzs_sem,'k--',data.norme, data.dzs_mean+data.dzs_sem,'k--')    
+#    plt.show()
+#    
+#def partitionbox(axes,data,center,totalwidth,spacing,cchoice,boxwidth=None,showfliers=True):
+#    
+#    if type(boxwidth)==NoneType:boxwidth = (totalwidth-spacing*(len(data)-1))/len(data)
+#    
+#    if len(data)>1:positions = N.linspace(center-totalwidth/2+boxwidth/2,center+totalwidth/2-boxwidth/2,len(data))
+#    else:positions=center
+#    
+#    if showfliers:fly = 'o'
+#    else:fly=''
+#    box = axes.boxplot(data,positions=positions,widths=boxwidth,sym=fly,patch_artist=True,whis=[5,95])
+#    
+#    for clr,bx in zip(cchoice,box['boxes']):
+#        bx.set_facecolor(clr)
+#        bx.set_edgecolor(clr)
+#    for bx in box['medians']:
+#        bx.set_color(color='k')
+#        bx.set_lw(1)
+#    for i,bx in enumerate(box['caps']):
+#        #bx.set_color(color=N.repeat(colorlist,2,axis=0)[i])
+#        bx.set_lw(0)
+#    for clr,bx in zip([x1 for pair in zip(cchoice,cchoice) for x1 in pair],box['whiskers']):
+#        bx.set_color(color=clr)
+#        bx.set_ls('-')
+#        bx.set_lw(2)
+#    
+#    if showfliers:
+#        for clr,bx in zip(cchoice,box['fliers']):
+#            bx.set_markerfacecolor(clr)
+#            bx.set_markeredgecolor(clr)
+#            bx.set_markeredgewidth(0.5)
+#            bx.set_markersize(3)
+#            bx.set_alpha(0.5)
+#
+#
+#                
+#    return box
+#
+#def set_colors(allwhere,condition,usethis,colors=None):
+#    
+#    if type(colors)==NoneType:colors=N.repeat('0.5',len(allwhere))
+#    
+#    a=[]
+#    for i,boo in enumerate([re.search(condition,i)!=None for i in allwhere]):
+#
+#        if boo:a.append(usethis)
+#        else:a.append(colors[i])
+#    return a
+#
+#
+#    
 plot_hist=False
 
 user_where=["FLOOR((ergi.glactype::real-9000)/100)=0 AND gltype.surge='f'","FLOOR((ergi.glactype::real-9000)/100)=1 AND glnames.name!='Columbia'","FLOOR((ergi.glactype::real-9000)/100)=2 AND glnames.name!='Bering' AND glnames.name!='YakutatEast' AND glnames.name!='YakutatWest' AND gltype.surge='f'","gltype.surge='f'"]
@@ -150,8 +151,8 @@ labels = ['<=3yr intervals','3-5 yrs','5-10yrs','>=10yrs','>=3yrs','>=5yrs','Bef
 shpfiles = ['intervals_less3yr','intervals_3_5yrs','intervals5_10yrs','intervals_more10yrs','intervals_more3yrs','intervals_more5yrs','Before2003','After2002']
 div1 = '2000-01-01'
 i=0
-
-runall=False
+print 2
+runall=True
 
 if runall:    
     surveyeddata = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True)
@@ -193,8 +194,10 @@ if runall:
     ##################################################################################
     titles.append("Partitioning\ntidewater")
     types = ["ergi.gltype IN (0,2)","ergi.gltype=1"]
+    print 'here'
     #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
     lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
+    raise
     outputs.append(lamb)  
     allwheres.append(whereswo)
     lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
