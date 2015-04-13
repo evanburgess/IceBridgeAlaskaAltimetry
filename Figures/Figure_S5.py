@@ -1,37 +1,13 @@
-import psycopg2
-import xlrd
-import re
-import unicodedata
 import numpy as N
-from time import mktime
-from datetime import datetime
-from time import mktime
-import time
-import os
-import glob
-import simplekml as kml
-import subprocess
-import datetime as dtm
-from types import *
-import sys
-import ppygis
-import StringIO
-import shapefile
-from osgeo import osr
-from pylab import *
 import matplotlib as plt
-
-import ConfigParser
-from glob import glob
-
-cfg = ConfigParser.ConfigParser()
-cfg.read(os.path.dirname(__file__)+'/setup.cfg')
-sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
-
+from scipy.stats import pearsonr
 from Altimetry.Interface import *
+import time
 
+#a log-linear fit
 def loglin(x,y,extend=None):
-    corr = scipy.stats.pearsonr(N.log(x), y)
+    #n.log is a natural log
+    corr = pearsonr(N.log(x), y)
     z = N.polyfit(N.log(x), y, 1)
     f = N.poly1d(z)
     
@@ -45,12 +21,29 @@ def loglin(x,y,extend=None):
     
     return z,x_new,y_new,corr
     
-conn,cur = ConnectDb()
+def query_glacier_results(*argv,**kwargs):
+    a=list(argv[:])
+    if len(a)>0:a[0] ="surveyed='%s'" % a[0]
+    if len(a)>1:a[1] ="gltype=%s" % a[1]
 
-totalarea = GetSqlData2("SELECT SUM(area)::real as totalarea FROM temp2;")['totalarea']
+    if 'gltype' in kwargs and len(a)>1:raise "CANT INPUT A GLTYPE TWICE"
+    if 'gltype' in kwargs and len(a)<2:a.append("gltype=%s" % kwargs['gltype'])
+    if 'add_wheres' in kwargs:a.append(kwargs['add_wheres'])
 
-#cur.execute("select ergi.glimsid,ergi.area,ergi.albersgeom,rlt.bal,rlt.surveyed,rlt.gltype,ergi.name into temp2 from ergi inner join (SELECT glimsid, SUM(mean*area)/SUM(area)*0.85 as bal, every(surveyed) as surveyed, AVG(gltype::real) as gltype from resultsauto group by glimsid) as rlt on ergi.glimsid=rlt.glimsid;")
-#cur.commit()
+    return GetSqlData2("SELECT area::real,bal,surveyed FROM byglacier_results WHERE %s;" % " AND ".join(a))#ZZZ
+
+#PLOTTING A LOG LINEAR FIT GIVEN INPUT DATA
+def plot_loglindata(axis,area,bal):
+    z,x_new,y_new,corr = loglin(area,bal)
+    axis.plot(N.exp(x_new), y_new,'k')    
+    
+conn,cur = ConnectDb()  
+
+#THIS IS RETRIEVING THE TOTAL GLACIER AREA OF THE REGION
+cur.execute("REFRESH MATERIALIZED VIEW byglacier_results;")
+conn.commit()
+
+totalarea = GetSqlData2("SELECT SUM(area)::real as totalarea FROM byglacier_results;")['totalarea']#ZZZ
 
 lm=0.17
 bm=0.07
@@ -69,24 +62,61 @@ ax.set_xscale('log')
 ax1.set_xscale('log')
 ax2.set_xscale('log')
 
+tax=ax.twinx()
+tax1=ax1.twinx()
+tax2=ax2.twinx()
+
 plt.rc("font", **{"sans-serif": ["Arial"],"size": 10})
+
+
+def area_plot(axis,gltype,colors,outliers=None,notoutliers=None,correct=False):
+    
+    #UNSRUVEYED DATA
+    d = query_glacier_results('f',gltype)
+    axis.plot(d['area'],d['bal'],'.b',markersize=5,alpha=0.7,markeredgewidth=0.01,color=colors[0])#b)
+    
+    #PLOTTING FIT TO UNSURVEYED DATA
+    z,x_new,y_new,corr = loglin(d['area'],d['bal'])
+    axis.plot(N.exp(x_new), y_new,'k')
+    
+    #SURVEYED DATA
+    #plotting outliers as black dots
+    doutlier = query_glacier_results('t',gltype,add_wheres=outliers)
+    ax.plot(doutlier['area'],doutlier['bal'],'ok')
+    
+    #plotting all of the other data (not outliers)
+    d = query_glacier_results('t',gltype,add_wheres=notoutliers)
+    ax.plot(d['area'],d['bal'],'ob',color=colors[1])
+    
+    #fitting a loglin function to the data without outliers and plotting
+    z,x_new,y_new,corr0 = loglin(d['area'],d['bal'])
+    ax.plot(N.exp(x_new), y_new,'k',linewidth=2)
+    
+    #PLOTTING THE GLACIER AREA CUMULATIVE PLOT
+    tax=axis.twinx()
+    d = query_glacier_results(gltype=gltype)
+    tax.plot(N.sort(d['area']),N.cumsum(N.sort(d['area']))/totalarea*100,'r')
+    
+    axis.set_xlim([10e-2,10e3])
+    axis.set_ylim([-4,0.4])
+    tax.set_ylim([0,100])
 
 
 ####################################
 #NOT SURVEYED
 ####################################
 markersz = 5
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=0 AND gltype=1;")
+d = query_glacier_results('f',1)
 ax.plot(d['area'],d['bal'],'.b',markersize=markersz,alpha=0.7,markeredgewidth=0.01,color=colors[2])#b)
 z,x_new,y_new,corr = loglin(d['area'],d['bal'])
 ax.plot(N.exp(x_new), y_new,'k')
 
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=0 AND gltype=0;")
+d = query_glacier_results('f',0)
 ax1.plot(d['area'],d['bal'],'.r',markersize=markersz,alpha=0.1,markeredgewidth=0.01,color=colors[1])#r
 z_u1,x_new_u1,y_new_u1,corr_u1 = loglin(d['area'],d['bal'],extend=[0.1,5000])
 ax1.plot(N.exp(x_new_u1), y_new_u1,'k')
 
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=0 AND gltype=2;")
+d = query_glacier_results('f',2)
 ax2.plot(d['area'],d['bal'],'.g',markersize=markersz,alpha=0.7,markeredgewidth=0.01,color=colors[4])#g
 z,x_new,y_new,corr = loglin(d['area'],d['bal'])
 ax2.plot(N.exp(x_new), y_new,'k')
@@ -95,44 +125,42 @@ ax2.plot(N.exp(x_new), y_new,'k')
 ####################################
 #SURVEYED
 ####################################
-dcol = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=1 AND gltype=1 AND name = 'Columbia Glacier';")#
+#TIDEWATER
+dcol = query_glacier_results('t',1,add_wheres=" name = 'Columbia Glacier'")
 ax.plot(dcol['area'],dcol['bal'],'ok')
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=1 AND gltype=1 AND name != 'Columbia Glacier';")
+d = query_glacier_results('t',1,add_wheres=" name != 'Columbia Glacier'")
 ax.plot(d['area'],d['bal'],'ob',color=colors[3])
 z,x_new,y_new,corr0 = loglin(d['area'],d['bal'])
 ax.plot(N.exp(x_new), y_new,'k',linewidth=2)
 
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE gltype=1;")
-tax=ax.twinx()
+d = query_glacier_results(gltype=1)
+
 tax.plot(N.sort(d['area']),N.cumsum(N.sort(d['area']))/totalarea*100,'r')
 
-
-
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=1 AND gltype=0 AND bal<-1.8;;")
+#LAND
+d = query_glacier_results('t',0,add_wheres="bal<-1.8")
 ax1.plot(d['area'],d['bal'],'ok')
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=1 AND gltype=0 and bal>-1.8;")
+d = query_glacier_results('t',0,add_wheres="bal>-1.8")
 ax1.plot(d['area'],d['bal'],'or',color=colors[1])
 z1,x_new1,y_new1,corr1 = loglin(d['area'],d['bal'],extend=[0.1,5000])
 ax1.plot(N.exp(x_new1), y_new1,'k',linewidth=2)
 
 ax1.fill_between(N.exp(x_new1),y_new1,y_new_u1,zorder=4,alpha=0.3,color='k')
 
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE gltype=0;")
-tax1=ax1.twinx()
+d = query_glacier_results(gltype=0)
+
 tax1.plot(N.sort(d['area']),N.cumsum(N.sort(d['area']))/totalarea*100,'r')
 
-
-#SELECT ergi.glimsid,ergi.name,ergi.area,bal,surveyed::bool,gltype,ergi.area as totalarea into temp2 from (SELECT glimsid, SUM(mean*area)/SUM(area)*0.85 as bal,MAX(surveyed::int) as surveyed from resultsauto group by glimsid) as temp inner join ergi on temp.glimsid=ergi.glimsid;
-
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=1 AND gltype=2 AND name = 'East Yakutat Glacier';")
+#LAKE
+d = query_glacier_results('t',2,add_wheres="name = 'East Yakutat Glacier'")
 ax2.plot(d['area'],d['bal'],'ok')
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE surveyed=1 AND gltype=2 AND name != 'East Yakutat Glacier';")
+d = query_glacier_results('t',2,add_wheres="name != 'East Yakutat Glacier'")
 ax2.plot(d['area'],d['bal'],'og',color=colors[5])
 z,x_new,y_new,corr2 = loglin(d['area'],d['bal'])
 ax2.plot(N.exp(x_new), y_new,'k',linewidth=2)
 
-d = GetSqlData2("SELECT area::real,bal,surveyed,gltype FROM temp2 WHERE gltype=2;")
-tax2=ax2.twinx()
+
+d = query_glacier_results(gltype=2)
 tax2.plot(N.sort(d['area']),N.cumsum(N.sort(d['area']))/totalarea*100,'r')
 
 #plt.show()
@@ -155,7 +183,7 @@ tax1.set_ylim([0,100])
 tax2.set_ylim([0,100])
 
 #print [i.get_position() for i in ax.yaxis.get_ticklabels()]
-tax1.annotate("b = %1.4f ln(area) - %1.4f\nr = %1.2f,p-value = %1.2f"%(z[0],abs(z[1]),corr1[0],corr1[1]),[6000,5],fontsize=10,zorder=4,ha='right')
+tax1.annotate("b = %1.4f ln(area) - %1.4f\nr = %1.2f,p-value = Z%1.2f"%(z[0],abs(z[1]),corr1[0],corr1[1]),[6000,5],fontsize=10,zorder=4,ha='right')
 ax2.annotate("r = %1.2f,p = %1.2f"%(corr2[0],corr2[1]),[0.2,-3.5],fontsize=10)
 ax.annotate("r = %1.2f,p = %1.2f"%(corr0[0],corr0[1]),[0.2,-3.5],fontsize=10)
 #print [0.2,ax.yaxis.get_ticklabels()[1].get_position()[1]]
@@ -191,4 +219,4 @@ conn.commit()
 print "Small Glacier Correction in Gts yr -1: %s" % GetSqlData2("SELECT SUM(area*1000000*area_corr)/1e9 as correction FROM temp2;")['correction']
 print "Small Glacier Correction in m w eq yr -1: %s" % GetSqlData2("SELECT SUM(area*area_corr)/SUM(area) as correction FROM temp2 WHERE gltype=0 and surveyed=0;")['correction']
 plt.show()
-fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/FigS3_area_correction3.jpg",dpi=300)
+fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/FigS3_area_correction4.jpg",dpi=300)
