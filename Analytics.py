@@ -35,49 +35,50 @@ from Interface import *
 #sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 #sys.path.append('/Users/igswahwsmcevan/Altimetry/code')
 
+ 
 
 #con,curr = ConnectDb()
 
-#def partition_dataset(*args,**kwargs):
-#    
-#
-#    for k in kwargs:
-#        if k not in ['interval_min','interval_max','applytoall']:raise "ERROR: Unidentified keyword present"
-#    lamb = [] 
-#    userwheres=[]
-#    userwheres2=[]
-#    notused = []
-#    notused2 = []
-#    zones=[]
-#    if 'interval_max' in kwargs.keys():intervalsmax = kwargs['interval_max']
-#    else:intervalsmax=30
-#    
-#    if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
-#    else:min_interval=5
-#    
-#    
-#    for items in iterproduct(*list(args)):
-#        userwhere =  " AND ".join(items)
-#
-#        if kwargs:
-#            if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
-#            userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
-#            
-#        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
-#        if type(out)!=NoneType:
-#            userwheres2.append(userwhere2)
-#            userwheres.append(userwhere)
-#            lamb.append(out)
-#            lamb[-1].fix_terminus()
-#            lamb[-1].remove_upper_extrap()
-#            lamb[-1].normalize_elevation()
-#            lamb[-1].calc_dz_stats()
-#            lamb[-1].extend_upper_extrap()
-#            lamb[-1].calc_mb()
-#        else:
-#            notused.append(userwhere)
-#            notused2.append(userwhere2)
-#    return lamb,userwheres2,notused2,userwheres,notused
+def partition_dataset(*args,**kwargs):
+    
+
+    for k in kwargs:
+        if k not in ['interval_min','interval_max','applytoall']:raise "ERROR: Unidentified keyword present"
+    lamb = [] 
+    userwheres=[]
+    userwheres2=[]
+    notused = []
+    notused2 = []
+    zones=[]
+    if 'interval_max' in kwargs.keys():intervalsmax = kwargs['interval_max']
+    else:intervalsmax=30
+    
+    if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
+    else:min_interval=5
+    
+    
+    for items in iterproduct(*list(args)):
+        userwhere =  " AND ".join(items)
+
+        if kwargs:
+            if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
+            userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
+            
+        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
+        if type(out)!=NoneType:
+            userwheres2.append(userwhere2)
+            userwheres.append(userwhere)
+            lamb.append(out)
+            lamb[-1].fix_terminus()
+            lamb[-1].remove_upper_extrap()
+            lamb[-1].normalize_elevation()
+            lamb[-1].calc_dz_stats()
+            lamb[-1].extend_upper_extrap()
+            lamb[-1].calc_mb()
+        else:
+            notused.append(userwhere)
+            notused2.append(userwhere2)
+    return lamb,userwheres2,notused2,userwheres,notused
 
 def coords_to_polykml (outputfile, inpt,inner=None, name=None,setcolors=None):
 
@@ -1383,10 +1384,7 @@ def fix_terminus(lambobj,slope=-0.05,error=1):
 #        return out
 
 def extrapolate3(groups,selections,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, resulttable='resultsauto',export_shp=None,export_csv=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
-    
-    cfg = ConfigParser.ConfigParser()
-    cfg.read(os.path.dirname(__file__)+'/setup.cfg')
-    sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
+    import __init__ as init
 
     for grp in groups:
         if not hasattr(grp,'interquartile_rng'):raise "Run statistics on groups first"
@@ -1526,7 +1524,7 @@ def extrapolate3(groups,selections,insert_surveyed_data=None, extrap_tbl='extrap
         start_time = time.time()
         print "Exporting To Shpfile"
         sys.stdout.flush()
-        os.system("%s -f %s -h localhost altimetry %s" % (cfg.get('Section One', 'pgsql2shppath'),export_shp,resulttable))
+        os.system("%s -f %s -h localhost altimetry %s" % (init.pgsql2shppath,export_shp,resulttable))
         print "Exporting To Shpfile took",time.time() - start_time,'seconds'
     if type(export_csv) != NoneType:
         print "Exporting to CSV"

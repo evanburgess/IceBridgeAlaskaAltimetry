@@ -1,83 +1,84 @@
 # -*- coding: utf-8 -*-
 #import xlrd
-import re
-import unicodedata
+#import re
+#import unicodedata
 import numpy as np
-import datetime as dtm
-import os
-import glob
-import simplekml as kml
-import subprocess
+#import datetime as dtm
+#import os
+#import glob
+#import simplekml as kml
+#import subprocess
 import matplotlib.pyplot as plt
-from osgeo import gdal
-from types import *
-import sys
-import time
-# from mpl_toolkits.basemap import Basemap
-from matplotlib.collections import PatchCollection
-from osgeo.gdalnumeric import *
-import matplotlib.path as mpath
-import matplotlib.patches as mpatches
-import matplotlib.mlab as mlab
-import scipy.misc
-import matplotlib
-import matplotlib.colors as colors
-import matplotlib.cm as cmx
-import scipy.stats as stats
-import scipy.stats.mstats as mstats
-from numpy.ma import MaskedArray, masked, nomask
-import numpy.ma as ma
+#from osgeo import gdal
+#from types import *
+#import sys
+#import time
+## from mpl_toolkits.basemap import Basemap
+#from matplotlib.collections import PatchCollection
+#from osgeo.gdalnumeric import *
+#import matplotlib.path as mpath
+#import matplotlib.patches as mpatches
+#import matplotlib.mlab as mlab
+#import scipy.misc
+#import matplotlib
+#import matplotlib.colors as colors
+#import matplotlib.cm as cmx
+#import scipy.stats as stats
+#import scipy.stats.mstats as mstats
+#from numpy.ma import MaskedArray, masked, nomask
+#import numpy.ma as ma
 import pickle
-from itertools import product
+#from itertools import product
 
-import ConfigParser
-
-cfg = ConfigParser.ConfigParser()
-cfg.read(os.path.dirname(__file__)+'/setup.cfg')
-sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
+#import ConfigParser
+#
+#cfg = ConfigParser.ConfigParser()
+#cfg.read(os.path.dirname(__file__)+'/setup.cfg')
+#sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
 from Altimetry.Interface import *
+from Altimetry.Analytics import *
 
-def partition_dataset(*args,**kwargs):
-
-    for k in kwargs:
-        if k not in ['interval_min','interval_max','applytoall']:raise "ERROR: Unidentified keyword present"
-    lamb = [] 
-    userwheres=[]
-    userwheres2=[]
-    notused = []
-    notused2 = []
-    zones=[]
-    if 'interval_max' in kwargs.keys():intervalsmax = kwargs['interval_max']
-    else:intervalsmax=30
-    
-    if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
-    else:min_interval=5
-    print 'h'
-    from itertools import product
-    for items in product(*list(args)):
-        print items
-        userwhere =  " AND ".join(items)
-
-        if kwargs:
-            if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
-            userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
-            
-        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
-        if type(out)!=NoneType:
-            userwheres2.append(userwhere2)
-            userwheres.append(userwhere)
-            lamb.append(out)
-            lamb[-1].fix_terminus()
-            lamb[-1].remove_upper_extrap()
-            lamb[-1].normalize_elevation()
-            lamb[-1].calc_dz_stats()
-            lamb[-1].extend_upper_extrap()
-            lamb[-1].calc_mb()
-        else:
-            notused.append(userwhere)
-            notused2.append(userwhere2)
-    return lamb,userwheres2,notused2,userwheres,notused
+#def partition_dataset(*args,**kwargs):
+#
+#    for k in kwargs:
+#        if k not in ['interval_min','interval_max','applytoall']:raise "ERROR: Unidentified keyword present"
+#    lamb = [] 
+#    userwheres=[]
+#    userwheres2=[]
+#    notused = []
+#    notused2 = []
+#    zones=[]
+#    if 'interval_max' in kwargs.keys():intervalsmax = kwargs['interval_max']
+#    else:intervalsmax=30
+#    
+#    if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
+#    else:min_interval=5
+#    print 'h'
+#    from itertools import product
+#    for items in product(*list(args)):
+#        print items
+#        userwhere =  " AND ".join(items)
+#
+#        if kwargs:
+#            if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
+#            userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
+#            
+#        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
+#        if type(out)!=NoneType:
+#            userwheres2.append(userwhere2)
+#            userwheres.append(userwhere)
+#            lamb.append(out)
+#            lamb[-1].fix_terminus()
+#            lamb[-1].remove_upper_extrap()
+#            lamb[-1].normalize_elevation()
+#            lamb[-1].calc_dz_stats()
+#            lamb[-1].extend_upper_extrap()
+#            lamb[-1].calc_mb()
+#        else:
+#            notused.append(userwhere)
+#            notused2.append(userwhere2)
+#    return lamb,userwheres2,notused2,userwheres,notused
     #return 1,2,3
 #
 #    
@@ -202,7 +203,7 @@ if runall:
     allwheres.append(whereswo)
     lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
     results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
-    #
+    raise
     ###Separating Lakes
     ##################################################################################
     titles.append("Partitioning\nlake")
