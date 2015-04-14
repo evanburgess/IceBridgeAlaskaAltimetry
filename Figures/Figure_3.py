@@ -6,7 +6,7 @@ import pickle
 from scipy.stats.mstats import kruskalwallis
 from scipy.stats import mannwhitneyu
 import matplotlib as mpl
-from Altimetry.Interface import *
+from Altimetry.Altimetry import *
 
 
 def plot_brace(ax,left,right,y,height,up=True,color='k',annotate=None,fontsize=12,bbox=None,zorder=4):

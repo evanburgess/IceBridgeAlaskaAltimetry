@@ -36,8 +36,8 @@ import pickle
 #cfg.read(os.path.dirname(__file__)+'/setup.cfg')
 #sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
-from Altimetry.Interface import *
-from Altimetry.Analytics import *
+from Altimetry.Altimetry import *
+#from Altimetry.Analytics import *
 
 #def partition_dataset(*args,**kwargs):
 #

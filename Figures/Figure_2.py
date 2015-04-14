@@ -3,7 +3,7 @@ import numpy as N
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pickle
-from Altimetry.Interface import *
+from Altimetry.Altimetry import *
     
 #CREATES THE LITTLE INTERVAL LENGTH INSET PLOT
 def make_interval_length_plot(axes,interval_list,colorlist,label=None):
@@ -37,7 +37,7 @@ def make_interval_length_plot(axes,interval_list,colorlist,label=None):
     axes.set_ylim([0,3])
     
 #IT TAKES A WHILE TO QUERY THE DATABASE SO THIS DOES THE QUERIES, SAVES THE RESULTS FOR EASY DEVELOPING OF THE PLOT ITSELF
-startfromscratch=False
+startfromscratch=True
 if startfromscratch:    
 
     surveyeddata = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True,results=False)  # 

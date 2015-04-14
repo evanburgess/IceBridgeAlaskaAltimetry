@@ -8,7 +8,7 @@ import matplotlib
 import matplotlib.cm as cmx
 import matplotlib.colorbar as clbr
 from matplotlib.dates import YearLocator, MonthLocator, DateFormatter
-from Altimetry.Interface import *
+from Altimetry.Altimetry import *
 
 #generate a divergent colorscale with the colorranges provided
 def make_divergent(pos,negs,maxval,minval): 

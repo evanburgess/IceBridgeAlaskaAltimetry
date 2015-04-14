@@ -1,6 +1,6 @@
 import numpy as N
 import matplotlib.pyplot as plt
-from Altimetry.Interface import *
+from Altimetry.Altimetry import *
  
 #LISTS OF GLACIERS AND INTERVALS TO CHOOSE AS EXAMPLES
 names=["Baird Glacier","Field Glacier","Gillam Glacier","Kaskawulsh Glacier"]

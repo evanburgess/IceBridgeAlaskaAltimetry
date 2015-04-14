@@ -1,7 +1,7 @@
 import numpy as N
 import datetime as dtm
 import matplotlib as plt
-from Altimetry.Interface import *
+from Altimetry.Altimetry import *
 
 #DETERMINES IF A DATE IS WITHIN AN INTERVAL
 def datebtw(date, daterange):return date>daterange[0] and date<daterange[1]

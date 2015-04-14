@@ -1,7 +1,7 @@
 import numpy as N
 import matplotlib as plt
 from scipy.stats import pearsonr
-from Altimetry.Interface import *
+from Altimetry.Altimetry import *
 import time
 
 #a log-linear fit

@@ -8,7 +8,7 @@ from scipy.stats import norm
 import statsmodels.api as sm
 from scipy.interpolate import interp1d
 from matplotlib.dates import date2num,num2date
-from Altimetry.Interface import *
+from Altimetry.Altimetry import *
 
 #CONVERTS A DATETIME OBJECT INTO A FRACTIONAL YEAR
 def toYearFraction(date):
@@ -165,7 +165,7 @@ def date_regress(x,y):
     return slope*dx+intercept,p_value
     
 #QUERYING DATABASE
-a = False
+a = True
 if a:
     d = GetLambData(verbose=False,interval_max=30,interval_min=5,by_column=True,as_object=True,get_hypsometry=True,longest_interval=True,removerepeats=True)   #zzz   
     pickle.dump(d, open( "/Users/igswahwsmcevan/Desktop/temp6.p", "wb" ))

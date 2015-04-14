@@ -2,7 +2,7 @@
 import numpy as N
 import matplotlib.pyplot as plt
 import pickle
-from Altimetry.Interface import *
+from Altimetry.Altimetry import *
 
 def full_plot_extrapolation_curves(data,samples_lim=None,err_lim=None,title=None,hypsometry=None,color=None):
     
