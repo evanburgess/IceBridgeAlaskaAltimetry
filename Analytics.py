@@ -17,8 +17,8 @@ import itertools
 from itertools import product as iterproduct
 import sys
 from types import *
-
-from Interface import *
+sys.path.append('/Users/igswahwsmcevan/Altimetry/code/')
+from Altimetry.Interface import *
 
 #import xlrd
 #import unicodedata
@@ -33,7 +33,7 @@ from Interface import *
 #cfg = ConfigParser.ConfigParser()
 #cfg.read(os.path.dirname(__file__)+'/setup.cfg')
 #sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
-#sys.path.append('/Users/igswahwsmcevan/Altimetry/code')
+
 
  
 
