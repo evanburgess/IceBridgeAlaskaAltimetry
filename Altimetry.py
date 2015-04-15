@@ -199,11 +199,251 @@ KEYWORD ARGUMENTS:
             lst.append(dic)
        return lst
 
+##################################################################################################################  
+##################################################################################################################    
+def GetLambData(removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None ,earliest_date = None,\
+latest_date = None, userwhere = "",verbose = False,orderby=None,longest_interval=False,get_geom=False,\
+by_column=True,as_object=False,generalize=None,results=False,density=0.850, density_err= 0.06,acrossgl_err=0.0,get_hypsometry=False):
+    """====================================================================================================
+Altimetry.Interface.GetLambData
+Evan Burgess 2013-08-22
+====================================================================================================
+Purpose:
+    Extract lamb data using query built from keywords input here.  Any field in glnames,gltype, or lamb can be 
+    used in the query.  
+    
+Returns: 
+    List of dictionaries of requested data. Where each item in the list is a lamb file and each dictionary key
+    corresponds to the name of the column in the database.
+
+GetLambData(help, removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None,
+    earliest_date = None, latest_date = None, userwhere = "",verbose = True)    
+
+KEYWORD ARGUMENTS:        
+    removerepeats       Set to True to only select the shortest/non-overlapping intervals.  Set to false to 
+                        include all data.  Default Value=True
+                        
+    longest_interval    Set to True to only retreive the single longest interval for each glacier.
+                        
+    days_from_year      Set the number of days away from 365 to be considered.  For example if you want annual 
+                        intervals to be within  month of each other leave default of 30. If you want sub-annual 
+                        (seasonal data) set to 365.  Default Value = 30
+                        
+    interval_min        Minimum length of interval in years. This is a rounded value so inputing 1 will include
+                        an interval of 0.8 years if it passes the days_from_year threshold above. Default = 0 
+                        
+    interval_max        Maximum length of interval in years. This is a rounded value so inputing 3 will include
+                        an interval of 3.1 years if it passes the days_from_year threshold  above. Default = None
+                        
+    earliest_date       Earliest date of first acquistion. Enter as string 'YYYY-MM-DD'. Default = None
+    
+    latest_date         Latest date of second acquistion. Enter as string 'YYYY-MM-DD'. Default = None
+    
+    userwhere = ""      User can input additional queries as a string to a where statement.
+                        Example input:"glnames.name like '%Columbia%' AND ergi.area > 10"
+                        
+    verbose             Verbose output. Default = True
+    
+    get_geom            Set to True to retrieve the Geometry of the glacier polygon
+    
+    generalize          Set to a value to simplify geometries
+    
+    join                You can either select 'inner' joins or 'left' joins to the other tables. If inner
+                        joins are selected only lamb entries with a glimsid and an entry in the gltype table
+                        are considered.  Others are removed.  Let will include all entries in the lamb table
+                        whether or not they have other attributes attached to them.
+                
+    by_column           Get data organized by column instead of by lamb file
+    
+    as_object           Get data output as a LambObject.  Only works if by_column = True (Default=True)
+    
+====================================================================================================        
+        """
+    #LIST OF FIELDS TO QUERY
+    fields = [
+    'lamb2.lambid',
+    'lamb2.ergiid',
+    'lamb2.date1',
+    'lamb2.date2',
+    'lamb2.interval',
+    'lamb2.volmodel',
+    'lamb2.vol25diff',
+    'lamb2.vol75diff',
+    'lamb2.balmodel',
+    'lamb2.bal25diff',
+    'lamb2.bal75diff',
+    #'ergi2.glimsid',  # I DONT THINK WE NEED THE GLIMSID SINCE WE ARE UPGRADING TO ERGIID
+    'ergi_mat_view.surge',
+    'ergi_mat_view.gltype',
+    'ergi_mat_view.name',
+    'ergi_mat_view.region',
+    'lamb2.e',
+    'lamb2.dz',
+    'lamb2.dz25',
+    'lamb2.dz75',
+    'lamb2.aad',
+    'lamb2.masschange',
+    'lamb2.massbal',
+    'lamb2.numdata',
+    'ergi_mat_view.max::real',
+    'ergi_mat_view.min::real',
+    'flx2.eb_bm_flx',
+    'flx2.eb_best_flx',
+    'flx2.eb_low_flx',
+    'flx2.eb_high_flx',
+    'flx2.eb_bm_err',
+    'flx2.bm_length',
+    'ergi_mat_view.continentality',
+    'ergi_mat_view.area::double precision']
+
+    #LIST OF TABLES TO QUERY
+    tables = [
+    "FROM lamb2",
+    "LEFT JOIN ergi_mat_view ON lamb2.ergiid=ergi_mat_view.ergiid",
+    #"INNER JOIN ergi2 ON lamb2.ergiid=ergi_mat_view.ergiid",  # I DONT THINK WE NEED THE GLIMSID SINCE WE ARE UPGRADING TO ERGIID
+    "LEFT JOIN tidewater_flux2 as flx2 on ergi_mat_view.ergiid=flx2.ergiid"]  
+    
+    #OPTION TO RETRIEVE GLACIER POLYGON    
+    if get_geom:
+        if generalize != None: 
+            fields.append("ST_Simplify(ergi_mat_view.albersgeom, %s) as albersgeom" % generalize)
+        else: 
+            fields.append("ergi_mat_view.albersgeom as albersgeom")
+            
+
+    #OPTION TO RETRIEVE ALTIMETRY RESULTS FOR THIS GLACIER FROM LARSEN ET AL 2013
+    if results:
+        fields.extend(["rlt.rlt_totalGt","rlt.rlt_totalkgm2","rlt.rlt_errGt","rlt.rlt_errkgm2","rlt.rlt_singlerrGt","rlt.rlt_singlerrkgm2"])
+        
+        tables.append("""LEFT JOIN (SELECT ergiid,
+        SUM(area)/1000000. as area,
+        SUM(mean*area)/1e9*%5.3f::real as rlt_totalGt,
+        SUM(mean*area)/SUM(area)*%5.3f::real as rlt_totalkgm2,
+        (((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as rlt_errGt,
+        (((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_errkgm2,
+        (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_singlerrkgm2,
+        (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as rlt_singlerrGt 
+        FROM altimetryextrapolation GROUP BY ergiid) AS rlt ON ergi_mat_view.ergiid=rlt.ergiid""" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err))
+
+    #OPTION TO RETRIEVE ONLY THE LONGEST INTERVAL
+    orderby_init = []   
+    if longest_interval:
+        removerepeats = False
+        distinct = "DISTINCT ON (lamb2.ergiid)"
+        orderby_init.extend(["lamb2.ergiid","lamb2.interval DESC"])
+    else:
+        distinct = ''
+        #THIS ORDER IS NEEDED TO REMOVE REPEATS IF THIS OPTION IS SELECTED.  DATA WILL BE REODERED IF SPECIFIED BY THE USER
+        orderby_init.extend(["ergi_mat_view.name","lamb2.date1","lamb2.interval"])
+    
+    #LIST OF WHERE STATEMENTS
+    wheres = []
+    if days_from_year != None: wheres.append("((interval %% 365) > %s OR (interval %% 365) < %s)" % (365-days_from_year,days_from_year))
+    if interval_min != None:   wheres.append("ROUND(interval/365.) >= %s" % interval_min)
+    if interval_max != None:   wheres.append("ROUND(interval/365.) <= %s" % interval_max)
+    if earliest_date != None:  wheres.append("date1 >= '%s'" % earliest_date)
+    if latest_date != None:    wheres.append("date2 <= '%s'" % latest_date)
+    
+    #ADDING USER SPECIFIED WHERE
+    if userwhere!='':wheres.append(userwhere)
+    #if omit: where = where+" AND omit='f'"
+    if len(wheres)!=0:wheres[0] = "WHERE %s" % wheres[0]
+    #print orderby_init
+    if len(orderby_init)!=0:orderby_init[0] = "ORDER BY %s" % orderby_init[0]
+    
+    #MAKING THE SELECT QUERY
+    select = "SELECT %s %s %s %s %s;" % (distinct,",".join(fields),' '.join(tables),' AND '.join(wheres),",".join(orderby_init))
+    if verbose:print select
+    s = GetSqlData2(select,bycolumn=False)
+    
+    #IF NO DATA WAS RETURNED, END AND RETURNED NONE
+    if type(s)==NoneType: return None
+
+    #REMOVING REPEATS IF THAT OPTION WAS SELECTED
+    deletelist = []
+    keeplist = []
+    lastgl = ''
+    lastdate = dtm.date(1900,1,1)
+    
+    if removerepeats:
+        if verbose: print'Filtering lamb entries:'
+       
+        #LOOPING THROUGH AND FINDING THE REPEATS
+        for i,row in enumerate(s):
+
+            if row['name'] == lastgl:
+                #print '  ',row['lamb.date1'],lastdate
+                if row['date1'] < lastdate:
+                    deletelist.append(i)
+                    if verbose:print '  ',row['name'],row['date1'],row['date2'],'-- Omitted'
+                else:
+                    lastdate = row['date2']
+                    if verbose:print row['name'],row['date1'],row['date2']
+                    keeplist.append(row['lambid'])
+            else: 
+                lastgl = row['name']
+                lastdate = row['date2']
+                if verbose:print row['name'],row['date1'],row['date2']
+                keeplist.append(row['lambid'])
+        
+        #DELETING THE REPEATS
+        s = N.delete(N.array(s),deletelist)
+             
+    if orderby == None:
+        
+        if get_hypsometry:
+            for i in s:
+                hyps = GetSqlData2("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins2 WHERE ergiid='%s' ORDER BY normbins" % i['ergiid'])
+                for key in ('binned_area','bins','normbins'):i[key]=hyps[key]
+
+        if by_column:s = LambToColumn(s)
+    else:
+        if not re.search("^\s*ORDER BY",orderby[0], re.IGNORECASE): orderby[0]="ORDER BY %s" % orderby[0]
+        print "NOTE: Chosing orderby lengthens the querytime of GetLambData"
+        #s = GetSqlData2(select+'WHERE lamb.gid IN ('+re.sub('[\[\]]','',str(keeplist))+") ORDER BY "+orderby+";", bycolumn=by_column)
+        lambids = [str(i['lambid']) for i in s]
+        #print "','".join(lambids)
+        #print "SELECT %s %s WHERE lamb2.lambid IN ('%s') %s;" % (",".join(fields),' '.join(tables),"','".join(lambids),",".join(orderby))
+        s = GetSqlData2("SELECT %s %s WHERE lamb2.lambid IN ('%s') %s;" % (",".join(fields),' '.join(tables),"','".join(lambids),",".join(orderby)), bycolumn=by_column)
+        
+        if get_hypsometry:
+            s['binned_area'] = []
+            s['bins'] = []
+            s['normbins'] = []
+            for ergiidt in s['ergiid']:
+                hyps = GetSqlData2("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins2 WHERE ergiid='%s' ORDER BY normbins" % ergiidt)
+                s['binned_area'].append(hyps['binned_area'])
+                s['bins'].append(hyps['bins'])
+                s['normbins'].append(hyps['normbins'])
+                                                                
+    #                                                                            
+    #if orderby == None:
+    #    #print len(s)
+    #    s = N.delete(N.array(s),deletelist)
+    #    #print len(s)
+    #    if by_column:s = LambToColumn(s)
+    #else:
+    #    s = GetSqlData2(select+'WHERE lamb.gid IN ('+re.sub('[\[\]]','',str(keeplist))+") ORDER BY "+orderby+";", bycolumn=by_column)
+    #    
+    #if verbose:print len(s),' of rows in lamb selected.'
+
+
+    if len(s) == 0: return None
+
+    if as_object:
+        if type(s) == dict:
+            s=LambObject(s)
+            print 'object'
+        elif type(s) == list or type(s) == N.ndarray:
+            s = [LambObject(row) for row in s]
+            print 'list'
+       
+    return s  
 
     
 ##################################################################################################################  
 ##################################################################################################################    
-def GetLambData(removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None ,earliest_date = None,\
+def GetLambData_OLD(removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None ,earliest_date = None,\
 latest_date = None, userwhere = "",verbose = False,orderby=None,join='inner',longest_interval=False,get_geom=False,get_geog=False,\
 by_column=True,as_object=False,omit=True,generalize=None,results=False,density=0.850, density_err= 0.06,acrossgl_err=0.0,get_hypsometry=False):
     """====================================================================================================
@@ -354,6 +594,8 @@ inner join ergi on glnames.glimsid=ergi.glimsid left join tidewater_flux as flx 
         FROM resultsauto GROUP BY glimsid) as rlt on ergi.glimsid=rlt.glimsid """ % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err)
 
     select = select1+select2+select3
+    
+
 
 
 #ST_AsText(ergi.albersgeom) as geom \
@@ -452,8 +694,8 @@ inner join ergi on glnames.glimsid=ergi.glimsid left join tidewater_flux as flx 
             s['bins'] = []
             s['normbins'] = []
             for glimsidt in s['glimsid']:
-                print glimsidt
-                hyps = GetSqlData2("SELECT area as binned_area,bins,normbins FROM ergibins3 WHERE glimsid='%s' ORDER BY normbins" % glimsidt)
+                #print glimsidt
+                hyps = GetSqlData2("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins3 WHERE glimsid='%s' ORDER BY normbins" % glimsidt)
                 s['binned_area'].append(hyps['binned_area'])
                 s['bins'].append(hyps['bins'])
                 s['normbins'].append(hyps['normbins'])
@@ -486,6 +728,8 @@ class LambObject:
     def __init__(self, indata):
         #print indata.keys()
         for i,key in enumerate(indata.keys()):
+            if 'lambid' in indata.keys():self.lambid = indata['lambid']
+            if 'ergiid' in indata.keys():self.ergiid = indata['ergiid']
             if 'gid' in indata.keys():self.gid = indata['gid']
             if 'glid' in indata.keys():self.glid = indata['glid']
             if 'date1' in indata.keys():self.date1 = indata['date1']
