@@ -1,5 +1,5 @@
 #Altimetry/__init__.py
-__all__ = ['Interface','Analytics','UpdateDb','GeoTools','timeout','lambpath',
+__all__ = ['Altimetry','UpdateDb','GeoTools','timeout','lambpath',
     'xlfilepath','shpglobpath','psqlpath','shp2pgsqlpath','pgsql2shppath',
     'analysispath','continentalitypath','defaulthost','thor']
 
