@@ -25,7 +25,7 @@ x = N.where(freq!=0)[0]
 datex = [dtm.date(yr,1,1) for yr in x]
 
 #FINDING DISTRIBUTION OF SAMPLES THROUGH TIME
-data = GetLambData(longest_interval=True,as_object=True, orderby="ergi.region,ergi.name",interval_min=5)
+data = GetLambData(longest_interval=True,as_object=True,interval_min=5)
 timeline = [dtm.date(t,1,1) for t in N.arange(1993,2015)]
 count = N.zeros(len(timeline))
 
@@ -62,8 +62,8 @@ plt.rc("font", **{"sans-serif": ["Arial"],"size": 12})
 fig2.subplots_adjust(left=0.20,bottom=0.2, right=0.93, top=0.95,wspace=0.35)
 
 #QUERYING DATABASE FOR HYPOSMETRY
-surv = GetSqlData2("SELECT bins::real,SUM(area)::real/1000000. as area FROM resultsauto WHERE surveyed = 't' GROUP BY bins ORDER BY bins;")#zzz
-unsu = GetSqlData2("SELECT bins::real,SUM(area)::real/1000000. as area FROM resultsauto GROUP BY bins ORDER BY bins;")#zzz
+surv = GetSqlData2("SELECT bins::real,SUM(area)::real/1000000. as area FROM altimetryextrapolation WHERE surveyed = 't' GROUP BY bins ORDER BY bins;")#zzz
+unsu = GetSqlData2("SELECT bins::real,SUM(area)::real/1000000. as area FROM altimetryextrapolation GROUP BY bins ORDER BY bins;")#zzz
 
 #PLOTTING
 ax2.bar(unsu['bins'],unsu['area'],width=30,color=[0.6,0.6,1],zorder=0,linewidth=0,label="Alaska Region")

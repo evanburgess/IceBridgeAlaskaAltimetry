@@ -134,7 +134,7 @@ def rlm_date(x,y):
 
     return x,rlmresults.fittedvalues,N.array(rlmresults.pvalues).mean()
 
-#THIS FUNCTION PLOTS A BENCHMARK GLACIER TIMESERIES GIVEN THE GLACIER NAME, AND INTERVALS.  
+#THIS FUNCTION RETRIEVES BENCHMARK GLACIER TIMESERIES GIVEN THE GLACIER NAME, AND INTERVALS.  
 def plot_benchmark(glaciername=None,datesandintervals=None,timeseries=True,cumulative=False):
     if type(datesandintervals)==list and timeseries==False:
 

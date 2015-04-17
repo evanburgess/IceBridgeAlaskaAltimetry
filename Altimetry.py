@@ -22,6 +22,7 @@ import time
 import itertools
 from itertools import product as iterproduct
 import sys
+import StringIO
 from types import *
 import __init__ as init
      
@@ -203,7 +204,7 @@ KEYWORD ARGUMENTS:
 ##################################################################################################################    
 def GetLambData(removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None ,earliest_date = None,\
 latest_date = None, userwhere = "",verbose = False,orderby=None,longest_interval=False,get_geom=False,\
-by_column=True,as_object=False,generalize=None,results=False,density=0.850, density_err= 0.06,acrossgl_err=0.0,get_hypsometry=False):
+by_column=True,as_object=False,generalize=None,results=False,density=0.850, density_err= 0.06,acrossgl_err=0.0,get_hypsometry=False,get_glimsid=False):
     """====================================================================================================
 Altimetry.Interface.GetLambData
 Evan Burgess 2013-08-22
@@ -287,21 +288,25 @@ KEYWORD ARGUMENTS:
     'lamb2.numdata',
     'ergi_mat_view.max::real',
     'ergi_mat_view.min::real',
-    'flx2.eb_bm_flx',
-    'flx2.eb_best_flx',
-    'flx2.eb_low_flx',
-    'flx2.eb_high_flx',
-    'flx2.eb_bm_err',
-    'flx2.bm_length',
+    #'flx2.eb_bm_flx',
+    #'flx2.eb_best_flx',
+    #'flx2.eb_low_flx',
+    #'flx2.eb_high_flx',
+    #'flx2.eb_bm_err',
+    #'flx2.bm_length',
     'ergi_mat_view.continentality',
     'ergi_mat_view.area::double precision']
 
     #LIST OF TABLES TO QUERY
     tables = [
     "FROM lamb2",
-    "LEFT JOIN ergi_mat_view ON lamb2.ergiid=ergi_mat_view.ergiid",
+    "LEFT JOIN ergi_mat_view ON lamb2.ergiid=ergi_mat_view.ergiid"]
     #"INNER JOIN ergi2 ON lamb2.ergiid=ergi_mat_view.ergiid",  # I DONT THINK WE NEED THE GLIMSID SINCE WE ARE UPGRADING TO ERGIID
-    "LEFT JOIN tidewater_flux2 as flx2 on ergi_mat_view.ergiid=flx2.ergiid"]  
+    #"LEFT JOIN tidewater_flux2 as flx2 on ergi_mat_view.ergiid=flx2.ergiid"]  
+    
+    if get_glimsid:
+        fields.append('ergi2.glimsid')
+        tables.append("INNER JOIN ergi2 ON ergi_mat_view.ergiid=ergi2.ergiid")
     
     #OPTION TO RETRIEVE GLACIER POLYGON    
     if get_geom:
@@ -537,19 +542,18 @@ ergi.glactype,\
 ergi.region,\
 ergi.max::real,\
 ergi.min::real,\
-flx.eb_bm_flx,\
-flx.eb_best_flx,\
-flx.eb_low_flx,\
-flx.eb_high_flx,\
-flx.eb_bm_err,\
-flx.bm_length,\
-flx.smb,\
 ergi.continentality,\
 ergi.area::double precision,\
 ergi.name,\
 """
 
-#eb_bm_flx
+#flx.eb_bm_flx,\
+#flx.eb_best_flx,\
+#flx.eb_low_flx,\
+#flx.eb_high_flx,\
+#flx.eb_bm_err,\
+#flx.bm_length,\
+#flx.smb,\
 
 #ergi.max,\
 #ergi.mn_dist_coast,\
@@ -567,7 +571,7 @@ ergi.name,\
 
     select3 = """lamb.numdata \
 from lamb inner join glnames on glnames.gid=lamb.glid inner join gltype on glnames.gid=gltype.glid
-inner join ergi on glnames.glimsid=ergi.glimsid left join tidewater_flux as flx on ergi.glimsid=flx.glimsid """    
+inner join ergi on glnames.glimsid=ergi.glimsid"""# left join tidewater_flux as flx on ergi.glimsid=flx.glimsid """    
 
     if results:
         select1 = select1 + "rlt.rlt_totalGt,rlt.rlt_totalkgm2,rlt.rlt_errGt,rlt.rlt_errkgm2,rlt.rlt_singlerrGt,rlt.rlt_singlerrkgm2,"
@@ -763,10 +767,10 @@ class LambObject:
             if 'numdata' in indata.keys():self.numdata = indata['numdata']
             if 'glimsid' in indata.keys():self.glimsid = indata['glimsid']
             if 'continentality' in indata.keys():self.continentality = indata['continentality']
-            if 'eb_best_flx' in indata.keys():self.eb_best_flx = indata['eb_best_flx']
-            if 'eb_high_flx' in indata.keys():self.eb_high_flx = indata['eb_high_flx']
-            if 'eb_low_flx' in indata.keys():self.eb_low_flx = indata['eb_low_flx']
-            if 'eb_bm_flx' in indata.keys():self.eb_bm_flx = indata['eb_bm_flx']
+            #if 'eb_best_flx' in indata.keys():self.eb_best_flx = indata['eb_best_flx']
+            #if 'eb_high_flx' in indata.keys():self.eb_high_flx = indata['eb_high_flx']
+            #if 'eb_low_flx' in indata.keys():self.eb_low_flx = indata['eb_low_flx']
+            #if 'eb_bm_flx' in indata.keys():self.eb_bm_flx = indata['eb_bm_flx']
             if 'eb_bm_err' in indata.keys():self.eb_bm_err = indata['eb_bm_err']
             if 'smb' in indata.keys():self.smb = indata['smb']
             if 'area' in indata.keys():self.area = indata['area']
@@ -1000,8 +1004,9 @@ class LambObject:
                 Wstat,pval1 = stats.shapiro(ty)
                 self.normalp.append(pval1)
             else:  self.normalp.append(N.nan)
-             
-        self.skewz,self.skewp = skewtest_evan(N.ma.masked_array(newys2,mask=N.isnan(newys2)),axis=0)
+        try:     
+            self.skewz,self.skewp = skewtest_evan(N.ma.masked_array(newys2,mask=N.isnan(newys2)),axis=0)
+        except Warning:pass
         self.kurtz,self.kurtp = kurtosistest_evan(newys2,axis=0)  
         self.skew = stats.skew(newys2,axis=0)
         self.kurtosis = stats.kurtosis(newys2,axis=0)
@@ -1313,6 +1318,7 @@ def partition_dataset(*args,**kwargs):
         if kwargs:
             if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
             userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
+            print userwhere2
             
         out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
         if type(out)!=NoneType:
@@ -1320,11 +1326,12 @@ def partition_dataset(*args,**kwargs):
             userwheres.append(userwhere)
             lamb.append(out)
             lamb[-1].fix_terminus()
-            lamb[-1].remove_upper_extrap()
+            lamb[-1].remove_upper_extrap(remove_bottom=False)
             lamb[-1].normalize_elevation()
-            lamb[-1].calc_dz_stats()
+            lamb[-1].calc_dz_stats(too_few=4)
             lamb[-1].extend_upper_extrap()
             lamb[-1].calc_mb()
+                       
         else:
             notused.append(userwhere)
             notused2.append(userwhere2)
@@ -2010,7 +2017,7 @@ def fix_terminus(lambobj,slope=-0.05,error=1):
         lambobj.dz75 = N.where(nanreplace, lambobj.dz75[i ]+error,lambobj.dz75)
         return deriv
         
-def extrapolate3(groups,selections,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, resulttable='resultsauto',export_shp=None,export_csv=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
+def extrapolateOLD(groups,selections,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, resulttable='resultsauto',export_shp=None,export_csv=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
     import __init__ as init
 
     for grp in groups:
@@ -2219,6 +2226,149 @@ def extrapolate3(groups,selections,insert_surveyed_data=None, extrap_tbl='extrap
         conn.close()
         return out
         
+        
+def extrapolate(user,groups,selections,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, export_shp=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
+    import __init__ as init
+
+    #INSURING STATS HAVE BEEN RUN ON GROUP FIRST
+    for grp in groups:
+        if not hasattr(grp,'interquartile_rng'):raise "Run statistics on groups first"
+    
+    
+    tablename = create_extrapolation_table(user='evan') 
+    #tablename = 'alt_result_evan1'   
+
+  
+    ######################################################
+    #NOW INSERTING DATA THAT APPLIES TO THE GROUP OF GLACIERS INCLUDING UNSURVEYED GLACIERS AND ERROR FOR SURVEYED GLACIERS
+    
+    #"UPDATE %s SET error = error*1.5 WHERE gltype='1' AND surveyed='f';" % resulttable)   XXXXXXXXXXXXXXXXXXXXX LOOK HERE##########################################
+    buffer2 = StringIO.StringIO()
+    buffer2.write("BEGIN;\n")
+       
+    #UNSURVEYED GLACIER DATA INTO RESULT TABLE    
+    for grp,sel in zip(groups,selections):
+        
+        for i in N.linspace(0,99,100):
+            
+            #SETTING WHICH BINS WILL GET THE STATS APPLIED
+            wheres=[]
+            if sel!='':wheres.append(sel)
+            
+            #SINCE THE DATA IS SCALED TO 0-100 THERE IS ACTUALLY A POSSIBILITY OF 101 VALUES.  SINCE THEY ARE ALL 0 UP AT THE TOP WE JUST EXTEND THAT TO THE TOP BIN.
+            if i != 99:
+                wheres.append("normbins={norme:.2}".format(norme=grp.norme[i]))
+            else:
+                wheres.append("normbins IN (0.99,1)")
+                
+            #IF USERS DON'T SPECIFY SURVEYED DATA TO INSERT, WE WILL JUST EXTRAPOLATE TO SURVEYED GLACIERS
+            wheres2 = wheres[:]
+            if type(insert_surveyed_data)!=NoneType: 
+                wheres2.append("ergiid NOT IN (%s)" % ','.join(grp.ergiid.astype(str)))        
+            
+            where = " AND ".join(wheres2)
+
+            #THE UPDATE QUERY FOR UNSURVEYED DATA ONLY
+            buffer2.write("""UPDATE {table} \nSET (mean,median,std,sem,iqr,q1,q3,perc5,perc95,surveyed,error) = 
+    ({mean},{median},{std},{sem},{iqr},{q1},{q3},{perc5},{perc95},{surveyed},{error})
+    WHERE {where};\n""".format(
+            mean=grp.dzs_mean[i],median=grp.dzs_median[i],std=grp.dzs_std[i],sem=grp.dzs_sem[i],iqr=grp.interquartile_rng[i],
+            q1=grp.quartile_1[i],q3=grp.quartile_3[i],perc5=grp.percentile_5[i],perc95=grp.percentile_95[i],surveyed="'f'",error=grp.dzs_sem[i],
+            table=tablename,norme=grp.norme[i],where=where))
+            if i<4: print """UPDATE {table} \nSET (mean,median,std,sem,iqr,q1,q3,perc5,perc95,surveyed,error) = 
+    ({mean},{median},{std},{sem},{iqr},{q1},{q3},{perc5},{perc95},{surveyed},{error})
+    WHERE {where};\n""".format(
+            mean=grp.dzs_mean[i],median=grp.dzs_median[i],std=grp.dzs_std[i],sem=grp.dzs_sem[i],iqr=grp.interquartile_rng[i],
+            q1=grp.quartile_1[i],q3=grp.quartile_3[i],perc5=grp.percentile_5[i],perc95=grp.percentile_95[i],surveyed="'f'",error=grp.dzs_sem[i],
+            table=tablename,norme=grp.norme[i],where=where)
+            
+            #IF SURVEYED GLACIER DATA IS PROVIDED WE NEED TO INSERT THE GROUP SURVEYED GLACIER ERROR
+            #THIS IS SEPARATE FROM THE UNCERTAINTY FOR INDIVIDUAL GLACIERS
+            
+            if type(insert_surveyed_data)!=NoneType: 
+                wheres.append("ergiid IN (%s)" % ','.join(grp.ergiid.astype(str)))        
+            
+                where = " AND ".join(wheres)
+                
+                #INSERTING SURVEYED UNCERTAINTY AS THAT UNCERTAINTY IS FOR THE GROUP AND NOT THE INDIVIDUAL GLACIERS THUS EASIEST TO DO HERE
+                if i<4:print """UPDATE {table} \nSET (quadsum,error) = ({quadsum},{quadsum})
+    WHERE {where};\n\n""".format(quadsum=grp.quadsum[i],table=tablename,where=where)
+                buffer2.write("""UPDATE {table} \nSET (quadsum,error) = ({quadsum},{quadsum}) WHERE {where};\n""".format(quadsum=grp.quadsum[i],table=tablename,where=where))
+            
+    buffer2.write("COMMIT;\n")
+    buffer2.seek(0)
+    
+    #UPDATING TABLE WITH UNSURVEYED GLACIER DATA
+    print "Commiting data for unsurveyed glaciers..."
+    conn,cur = ConnectDb()
+    cur.execute(buffer2.read())
+    conn.commit()
+    cur.close()
+    buffer=None
+    
+
+        #######################################################
+    buffer = StringIO.StringIO()
+    buffer.write("BEGIN;\n")
+
+       
+    #SURVEYED GLACIER DATA INTO RESULT TABLE.  HERE WE ARE INSERTING THE SURVEYED DATA FOR SPECFIC GLACIERS   
+    if type(insert_surveyed_data)!=NoneType:
+        for eid,ergid in enumerate(insert_surveyed_data.ergiid):
+            for i in N.linspace(0,99,100):
+                
+                #SINCE THE DATA IS SCALED TO 0-100 THERE IS ACTUALLY A POSSIBILITY OF 101 VALUES.  SINCE THEY ARE ALL 0 UP AT THE TOP WE JUST EXTEND THAT TO THE TOP BIN.
+                if i != 99:
+                    where = "ergiid={ergiid} AND normbins={norme:.2}".format(ergiid=ergid, norme=insert_surveyed_data.norme[i])
+                else:
+                    where = "ergiid={ergiid} AND normbins IN (0.99,1)".format(ergiid=ergid, norme=insert_surveyed_data.norme[i])
+                    
+                
+                #THE UPDATE QUERY FOR SURVEYED DATA ONLY
+                buffer.write("""UPDATE {table} \nSET (mean,surveyed,singl_std) = 
+    ({mean},{surveyed},{singl_std}) WHERE {where};\n""".format(
+                mean=insert_surveyed_data.normdz[eid][i],quadsum=insert_surveyed_data.quadsum[i],surveyed="'t'",error=insert_surveyed_data.quadsum[i],
+                table=tablename,where=where,singl_std=insert_surveyed_data.survIQRs[eid][i]))
+                if i <4:print """UPDATE {table} \nSET (mean,surveyed,singl_std) = 
+    ({mean},{surveyed},{singl_std}) WHERE {where};\n""".format(
+                    mean=insert_surveyed_data.normdz[eid][i],quadsum=insert_surveyed_data.quadsum[i],surveyed="'t'",error=insert_surveyed_data.quadsum[i],
+                    table=tablename,where=where,singl_std=insert_surveyed_data.survIQRs[eid][i])
+            
+    buffer.write("COMMIT;\n")
+    buffer.seek(0)
+    
+    #UPDATING TABLE WITH SURVEYED GLACIER DATA
+    print "Commiting data for surveyed glaciers..."
+    conn,cur = ConnectDb()
+    cur.execute(buffer.read())
+    conn.commit()
+    cur.close()
+    buffer=None
+        
+
+
+    #THE USER CAN EXPORT THE OUTPUT TABLE AS A SHAPEFILE IF REQUESTED               
+    if type(export_shp) != NoneType:
+        print "Exporting To Shpfile"
+        sys.stdout.flush()
+        os.system("%s -f %s -h localhost altimetry %s" % (init.pgsql2shppath,export_shp,tablename))
+
+
+
+    print "Summing up totals" 
+    sys.stdout.flush()
+    start_time = time.time()
+    out = {}
+    #GETTING STATS TO OUTPUT
+    out['bysurveyed'] =    GetSqlData2("SELECT surveyed,         SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed;" %         (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+    out['bytype_survey'] = GetSqlData2("SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+    out['bytype'] =        GetSqlData2("SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+    out['all'] =           GetSqlData2("SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s;" %                          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+        
+    if not keep_postgres_tbls:remove_extrap_tables(user,tables=tablename)
+
+    return out
+        
                         
 def glaciertype_to_gltype(indata):
     out = []
@@ -2293,4 +2443,152 @@ def full_plot_extrapolation_curves(data,samples_lim=None,err_lim=None,title=None
     plt.show()
 
     return ax,ax2,ax3,ax4,ax5
+    
 
+
+def create_extrapolation_table(user=None,schema=None,table=None):
+
+    if user==None:raise "ERROR: Must Specify User"
+    
+    if schema==None: schema = 'public'
+    if table==None:
+        
+        #LOOKING FOR TABLES THIS USER HAS CREATED.  IF THE USER HAS MORE THAN ONE TABLE OPEN THEN NUMBERS WILL INCREASE SEQUENTIALLY  THIS RETURNS THE NEXT TABLE NUMBER AVAILABLE
+        n = GetSqlData2("SELECT substring(table_name FROM 'alt_result_{user}(\d+)') FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user))
+        if n==None:table = "alt_result_{user}1".format(user=user)
+        else: 
+            number = N.array(n['substring']).astype(int).max()+1
+            table = "alt_result_{user}{number}".format(user=user,number=number)
+        
+    
+    sql = """
+SELECT b.ergibinsid as resultid,b.ergiid,b.area,e.area as glarea,b.albersgeom,b.bins,b.normbins,e.gltype,e.surge,e.name,e.region INTO {schema}.{table} FROM ergibins2 as b INNER JOIN ergi_mat_view AS e ON b.ergiid=e.ergiid;
+
+CREATE SEQUENCE {table}_resultid_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+--ALTER TABLE {schema}.{table}_resultid_seq OWNER TO {user};
+ALTER SEQUENCE {table}_resultid_seq OWNED BY {table}.resultid;
+ALTER TABLE ONLY {table} ALTER COLUMN resultid SET DEFAULT nextval('{table}_resultid_seq'::regclass);
+ALTER TABLE ONLY {table}
+    ADD CONSTRAINT {table}_pkey PRIMARY KEY (resultid);
+CREATE INDEX {table}ergiid ON {table} USING btree (ergiid);
+CREATE INDEX {table}normbins ON {table} USING btree (normbins);
+CREATE INDEX {table}gltype ON {table} USING btree (gltype);
+CREATE INDEX {table}region ON {table} USING btree (region);
+CREATE INDEX {table}glarea ON {table} USING btree (glarea);
+
+CREATE INDEX {table}geom ON {table} USING gist (albersgeom);
+ALTER TABLE ONLY {table}
+    ADD CONSTRAINT {table}fkergi2 FOREIGN KEY (ergiid) REFERENCES ergi2(ergiid) MATCH FULL;
+ALTER TABLE {table} ADD COLUMN mean double precision;
+ALTER TABLE {table} ADD COLUMN median real;
+ALTER TABLE {table} ADD COLUMN std real;
+ALTER TABLE {table} ADD COLUMN sem double precision; 
+ALTER TABLE {table} ADD COLUMN quadsum double precision; 
+ALTER TABLE {table} ADD COLUMN iqr double precision;  
+ALTER TABLE {table} ADD COLUMN stdlow real; 
+ALTER TABLE {table} ADD COLUMN stdhigh real; 
+ALTER TABLE {table} ADD COLUMN q1 real; 
+ALTER TABLE {table} ADD COLUMN q3 real; 
+ALTER TABLE {table} ADD COLUMN  perc5 real;
+ALTER TABLE {table} ADD COLUMN  perc95 real;
+ALTER TABLE {table} ADD COLUMN  surveyed boolean;
+ALTER TABLE {table} ADD COLUMN  error double precision;
+ALTER TABLE {table} ADD COLUMN  singl_std real;
+
+COMMENT ON TABLE {table} IS 'This table is not raw data, it is a results table that is regenerated anytime someone runs extrapolate.  It can be exported as a shapefile as contains all of the information one needs to interpret the altimetry results in Larsen et al., 2015, both on the glacier scale and on the regional scale. When doing analysis, it is often easiest just to query this table.  This table has many duplicate fields but it doesn''''t really work to make it a vew because it is generated with a lot of python in addition to SQL.  It could just entail added fields to ergibins but since this table is changed everytime the extrapolation is run, I think it is better to keep ergibins untouched and change this table more so.  My experience was this runs way faster as well.  The units in this table are still (m/yr) so must be multiplied by 0.85 to get volume.';
+COMMENT ON COLUMN {table}.resultid IS 'Primary Key';
+COMMENT ON COLUMN {table}.ergiid IS 'Foreign Key to ergi2';
+COMMENT ON COLUMN {table}.name IS 'Glacier Name';
+COMMENT ON COLUMN {table}.gltype IS 'Terminus Type 0=land, 1=tide,2=lake';
+COMMENT ON COLUMN {table}.surge IS 'Surge Type?';
+COMMENT ON COLUMN {table}.glarea IS 'Total Glacier Area (not area of bin/polygon)';
+COMMENT ON COLUMN {table}.bins IS 'Middle elevation of bins (m)';
+COMMENT ON COLUMN {table}.normbins IS 'Nomalized position of bins (from ergibins)';
+COMMENT ON COLUMN {table}.area IS 'Area of bin/polygon (m**2)';
+COMMENT ON COLUMN {table}.region IS 'Region defined by Larsen et al. 2015';
+COMMENT ON COLUMN {table}.mean IS 'Rate of surface elevation change (m/yr)  For unsurveyed glaciers this is the sample mean, for surveyed glaciers this is the lamb median line.';
+COMMENT ON COLUMN {table}.median IS 'For unsurveyed glaciers this is the median of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.std IS 'For unsurveyed glaciers this is the STDDEV of the sample, disregard for surveyed glaciers  (m/yr)';
+COMMENT ON COLUMN {table}.sem IS 'For unsurveyed glaciers this is the SEM of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.quadsum IS '?';
+COMMENT ON COLUMN {table}.iqr IS 'For unsurveyed glaciers this is the IQR of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.stdlow IS 'For unsurveyed glaciers this is the STDDEV, low boundary of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.stdhigh IS 'For unsurveyed glaciers this is the STDDEV, high boundary of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.q1 IS 'For unsurveyed glaciers this is the first quartile of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.q3 IS 'For unsurveyed glaciers this is the third quartile of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.perc5 IS 'For unsurveyed glaciers this is the 5th percentile of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.perc95 IS 'For unsurveyed glaciers this is the 95th percentile of the sample, disregard for surveyed glaciers (m/yr)';
+COMMENT ON COLUMN {table}.surveyed IS 'Was the glacier surveyed?';
+COMMENT ON COLUMN {table}.error IS 'This error is the SEM for unsurveyed glaciers and the quadrature sum for surveyed glaciers  (m/yr)';
+COMMENT ON COLUMN {table}.albersgeom IS 'Alaska Albers Geometry';
+COMMENT ON COLUMN {table}.singl_std IS 'Error of a single glacier (m/yr)';
+COMMENT ON COLUMN altimetryextrapolation.region IS 'Region defined by Larsen et al. 2015';
+""".format(table=table,schema=schema,user=user)
+    #print sql
+    buffer = StringIO.StringIO()
+    buffer.write(sql)
+    buffer.seek(0)
+   
+    conn,cur = ConnectDb()
+    cur.execute(buffer.read())
+    conn.commit()
+    conn.set_isolation_level(0)
+    cur.execute("VACUUM (ANALYZE) %s" % table)
+    conn.commit()
+    conn.set_isolation_level(1)
+    cur.close()
+
+    return table
+
+def remove_extrap_tables(user,tables=None,schemas=None):
+    
+    #LOOKING FOR TABLES BY THIS USER
+    if type(tables)==NoneType:
+        #print "SELECT table_schema, substring(table_name FROM '(alt_result_{user}\d+)') as t FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user)
+        t = GetSqlData2("SELECT table_schema, substring(table_name FROM '(alt_result_{user}\d+)') as t FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user))
+        if type(t)==NoneType:
+            print "No tables by this user to delete."
+            return
+        tables = t['t']
+        schemas = t['table_schema']
+    elif type(schemas)==NoneType:
+        if type(tables)==list:
+            if len(tables)>1:tables2 = "','".join(list(tables))
+            if len(tables)==1:tables2 = tables[0]
+        else: 
+            tables2=tables
+            
+        schemas = GetSqlData2("SELECT table_schema FROM information_schema.tables WHERE table_name IN ('{tables}');".format(tables=tables2))['table_schema']
+
+    sql = """ALTER TABLE ONLY {schema}.{table} DROP CONSTRAINT IF EXISTS {table}fkergi2;
+DROP INDEX IF EXISTS {schema}.{table}geom;
+DROP INDEX IF EXISTS {schema}.{table}ergiid;
+DROP INDEX IF EXISTS {schema}.{table}normbins;
+DROP INDEX IF EXISTS {schema}.{table}gltype;
+DROP INDEX IF EXISTS {schema}.{table}region;
+DROP INDEX IF EXISTS {schema}.{table}glarea;
+ALTER TABLE ONLY {schema}.{table} DROP CONSTRAINT IF EXISTS {table}_pkey;
+ALTER TABLE {schema}.{table} ALTER COLUMN resultid DROP DEFAULT;
+DROP SEQUENCE IF EXISTS {schema}.{table}_resultid_seq;
+DROP TABLE {schema}.{table};
+"""
+
+    if type(tables) in (list, N.ndarray):
+        if len(tables)>1:outsql = "\n".join([sql.format(table=t,schema=s) for t,s in zip(tables,schemas)])
+        else: outsql = sql.format(table=tables[0],schema=schemas[0])
+    else:outsql = sql.format(table=tables,schema=schemas[0])
+    #print outsql
+    buffer = StringIO.StringIO()
+    buffer.write(outsql)
+    buffer.seek(0)
+   
+    conn,cur = ConnectDb()
+    cur.execute(buffer.read())
+    conn.commit()
+    cur.close()

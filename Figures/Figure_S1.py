@@ -49,7 +49,7 @@ def make_divergent(pos,negs,maxval,minval):
     #print cdict
     return cdict, mcolors.LinearSegmentedColormap('CustomMap', cdict)
     
-outputfile="/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/Figure_S1.jpg"
+outputfile="/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/Figure_S1_1.jpg"
 #outputfile=None
 show=True
 annotate=True
@@ -76,24 +76,15 @@ Usage:PlotIntervals(data,outputfile=None,show=True)
 ====================================================================================================        
         """
 #    QUERY DATABASE FOR INTERVALS USED IN LARSEN ET AL., 2015    
-data = GetLambData(longest_interval=True,as_object=True, orderby="ergi.region,ergi.name",interval_min=5)
-
-
-#ADD HOC SOLUTION FO MOVING THESE GLACIERS TO FAIRWEATHER GLACIER BAY
-data.region = N.where([i in ("East Yakutat Glacier","West Yakutat Glacier","Battle Glacier","Hidden Glacier", "Novatak Glacier", "West Nunatak Glacier") for i in data.name],"Fairweather Glacier Bay",data.region)
-
-#EXTRACTING EASTING COORDINATES SO LINES CAN BE ORGANIZED BY LONGITUDE 
-easting = N.array([re.findall('G(.*)E',glimsid)[0] for glimsid in data.glimsid]).astype(int)
-#sorting data by longitude
-data.region,easting,data.name,data.glimsid = (list(x) for x in zip(*sorted(zip(data.region, easting, data.name,data.glimsid))))
+data = GetLambData(longest_interval=True,as_object=True, orderby=["ergi_mat_view.region","ST_X(ST_Centroid(ergi_mat_view.albersgeom))"],interval_min=5,get_glimsid=True)
 
 #RETREIVING GLACIER MASS BALANCE FOR EACH SURVEYED GLACIER zzz this can now be cleaned up with calc_mb
-net = GetSqlData2("SELECT glimsid,SUM(mean*area)/SUM(area)*0.85 as net from resultsauto WHERE glimsid IN ('%s') GROUP BY glimsid;" %  "','".join(data.glimsid))
+net = GetSqlData2("SELECT ergiid,SUM(mean*area)/SUM(area)*0.85 as net from altimetryextrapolation WHERE ergiid IN (%s) GROUP BY ergiid;" % ",".join(N.array(data.ergiid).astype(str)))
 
 #MAKING SURE THE MB IS IN THE SAME ORDER AS DATA ZZZ
 net2 = []
-for ele in data.glimsid:
-    net2.append(net['net'][N.where(net['glimsid']==ele)[0]][0])
+for ele in data.ergiid:
+    net2.append(net['net'][N.where(net['ergiid']==ele)[0]][0])
 
 net = N.array(net2)
 colorby=net[:]
@@ -145,7 +136,7 @@ lastx=dtm.date(1900,1,1)
 lasty=1000
 
 #MANUAL ADJUSTMENTS TO LABEL LOCATIONS FORWARD AND BACKWARDS
-adjust={"East Yakutat":-720,"Battle":200,"Llewellyn":400,"Dinglestadt":-700,"McCarty":0,"Bear":-250,"Steele":100,"Donjek":-700,"Triumph":400,'LeConte':200,"Little Jarvis":30,"Warm Creek":30}
+adjust={"East Yakutat":0,"Battle":0,"Llewellyn":400,"Dinglestadt":-700,"McCarty":0,"Steele":100,'LeConte':200,"Little Jarvis":30,"Warm Creek":30,"Lemon Creek":1000,"Skilak":800,'Baird':-200}
 
 
 #LOOPING THROUGH EACH LINE AND PLOTTING IT

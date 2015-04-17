@@ -47,7 +47,7 @@ if startfromscratch:
     surveyeddata.calc_dz_stats()
     #surveyeddata.extend_upper_extrap()
 
-    land = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True, userwhere="FLOOR((ergi.glactype::real-9000)/100)=0 AND gltype.surge='f'",results=False)   # zzz
+    land = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.gltype=0 AND ergi_mat_view.surge='f'",results=False)   # zzz  "FLOOR((ergi.glactype::real-9000)/100)=0 AND gltype.surge='f'"
     land.convert085()
     land.fix_terminus()
     land.remove_upper_extrap(remove_bottom=False)
@@ -56,7 +56,7 @@ if startfromscratch:
     land.extend_upper_extrap()
     
 
-    tide = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True, userwhere="FLOOR((ergi.glactype::real-9000)/100)=1 AND glnames.name!='Columbia'",results=False)   # zzz
+    tide = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.gltype=1 AND ergi_mat_view.name!='Columbia Glacier'" ,results=False)   # zzz  "FLOOR((ergi.glactype::real-9000)/100)=1 AND glnames.name!='Columbia'"
     tide.convert085()
     tide.fix_terminus()
     tide.remove_upper_extrap(remove_bottom=False)
@@ -64,7 +64,7 @@ if startfromscratch:
     tide.calc_dz_stats(too_few=4)
     tide.extend_upper_extrap()
 
-    lake = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True, userwhere="FLOOR((ergi.glactype::real-9000)/100)=2 AND glnames.name!='Bering' AND glnames.name!='YakutatEast' AND glnames.name!='YakutatWest' AND gltype.surge='f'",results=False)  # zzz 
+    lake = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.gltype=2 AND ergi_mat_view.name NOT IN ('East Yakutat Glacier','West Yakutat Glacier') AND ergi_mat_view.surge='f'",results=False)  # zzz"FLOOR((ergi.glactype::real-9000)/100)=2 AND glnames.name!='Bering' AND glnames.name!='YakutatEast' AND glnames.name!='YakutatWest' AND gltype.surge='f'" 
     lake.convert085()
     lake.fix_terminus()
     lake.remove_upper_extrap(remove_bottom=False)
@@ -72,37 +72,37 @@ if startfromscratch:
     lake.calc_dz_stats(too_few=4)
     lake.extend_upper_extrap()
 
-    columbia = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="glnames.name='Columbia'")   # zzz
+    columbia = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.name='Columbia Glacier'")   # zzz
     columbia.convert085()
     columbia.fix_terminus()
     columbia.remove_upper_extrap(remove_bottom=False)
     columbia.normalize_elevation()
     
-    hubbard = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="glnames.name='Hubbard'")   # zzz
+    hubbard = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.name='Hubbard Glacier'")   # zzz
     hubbard.convert085()
     hubbard.fix_terminus()
     hubbard.remove_upper_extrap(remove_bottom=False)
     hubbard.normalize_elevation()
     
-    wolverine = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="glnames.name='Wolverine'")   # zzz
+    wolverine = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.name='Wolverine Glacier'")   # zzz
     wolverine.convert085()
     wolverine.fix_terminus()
     wolverine.remove_upper_extrap(remove_bottom=False)
     wolverine.normalize_elevation()
     
-    gulkana = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="glnames.name='Gulkana'")   # zzz
+    gulkana = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.name='Gulkana Glacier'")   # zzz
     gulkana.convert085()
     gulkana.fix_terminus()
     gulkana.remove_upper_extrap(remove_bottom=False)
     gulkana.normalize_elevation()
     
-    yakeast = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="glnames.name='YakutatEast'")   # zzz
+    yakeast = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.name='East Yakutat Glacier'")   # zzz
     yakeast.convert085()
     yakeast.fix_terminus()
     yakeast.remove_upper_extrap(remove_bottom=False)
     yakeast.normalize_elevation()
     
-    yakwest = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="glnames.name='YakutatWest'")   # zzz
+    yakwest = GetLambData(verbose=False,longest_interval=True,interval_min=5,by_column=True,as_object=True, userwhere="ergi_mat_view.name='West Yakutat Glacier'")   # zzz
     yakwest.convert085()
     yakwest.fix_terminus()
     yakwest.remove_upper_extrap(remove_bottom=False)
@@ -192,5 +192,5 @@ ax3.annotate('C',[0.07,10],horizontalalignment='center',verticalalignment='cente
 
 plt.show()
 
-fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/dhdtprofiles4_1.jpg",dpi=500)
+fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/dhdtprofiles4_2.jpg",dpi=500)
 

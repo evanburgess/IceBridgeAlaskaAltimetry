@@ -27,9 +27,9 @@ def plot_brace(ax,left,right,y,height,up=True,color='k',annotate=None,fontsize=1
  
 a = True
 if a:
-    survdata = GetSqlData2("SELECT t.glimsid,ergi.name,t.bal,ergi.region,ergi.continentality,ergi.gltype FROM ergi INNER JOIN (SELECT glimsid,SUM(mean*resultsauto.area)/SUM(resultsauto.area)*0.85 as bal, MAX(surveyed::int) as surveyed FROM resultsauto WHERE surveyed='t' GROUP BY glimsid) AS t ON ergi.glimsid=t.glimsid ORDER BY region;")  #zzz
-    regions = GetSqlData2("SELECT DISTINCT region::text FROM ergi;")['region'].astype('a30')  #zzz
-    d = GetSqlData2("SELECT gltype,surveyed,SUM(mean*area)/SUM(area)*0.85 as myr,SUM(mean*area)/1e9*0.85 as gt,(((((SUM(error*area)/SUM(mean*area))^2+(0.06/0.85)^2)^0.5)*SUM(mean*area)/SUM(area)*0.85)^2+(0)^2)^0.5::real as myrerr,(((((SUM(error*area)/SUM(mean*area))^2+(0.06/0.85)^2)^0.5)*SUM(mean*area)/1e9*0.85)^2 + (0)^2)^0.5::real as gterr,sum(area)/1e6::real as area from resultsauto group by gltype,surveyed order by gltype,surveyed;") #zzz 
+    survdata = GetSqlData2("SELECT t.ergiid,ergi_mat_view.name,t.bal,ergi_mat_view.region,ergi_mat_view.continentality,ergi_mat_view.gltype FROM ergi_mat_view INNER JOIN (SELECT ergiid,SUM(mean*alt.area)/SUM(alt.area)*0.85 as bal, MAX(surveyed::int) as surveyed FROM altimetryextrapolation AS alt WHERE surveyed='t' GROUP BY ergiid) AS t ON ergi_mat_view.ergiid=t.ergiid ORDER BY region;")  #zzz
+    regions = GetSqlData2("SELECT DISTINCT region::text FROM ergi_mat_view;")['region'].astype('a30')  #zzz
+    d = GetSqlData2("SELECT gltype,surveyed,SUM(mean*area)/SUM(area)*0.85 as myr,SUM(mean*area)/1e9*0.85 as gt,(((((SUM(error*area)/SUM(mean*area))^2+(0.06/0.85)^2)^0.5)*SUM(mean*area)/SUM(area)*0.85)^2+(0)^2)^0.5::real as myrerr,(((((SUM(error*area)/SUM(mean*area))^2+(0.06/0.85)^2)^0.5)*SUM(mean*area)/1e9*0.85)^2 + (0)^2)^0.5::real as gterr,sum(area)/1e6::real as area FROM altimetryextrapolation GROUP BY gltype,surveyed order by gltype,surveyed;") #zzz 
 
     pickle.dump([survdata,regions,d], open( "/Users/igswahwsmcevan/Desktop/temp.p", "wb" ))
 else:
@@ -47,10 +47,10 @@ zones = ['Interior','South-Central','Southeast']
 gltype=[0,2,1]
 
 # A FEW GLACIERS ARE OUTSIDE ANY REGION, WE WON'T SHOW THESE REGIONS HERE SO WE ARE REMOVING REGIONS OF NONE
-regions = regions[N.where(regions!='None')]
+#regions = regions[N.where(regions!='None')]
 
 # Removing the aleutian chain glaciers and the brooks range
-regions = regions[[7,8,0,9,6,1,2,3]]
+regions = regions[[1,2,3,4,6,7,8,9,10]]
 
 #CREATING A BROADER ZONE FIELD FROM THE MOUNTAIN RANGES FROM REGION KEY
 survdata['zone'] = survdata['region'].astype(str)

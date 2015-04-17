@@ -149,7 +149,7 @@ ax.xaxis.set_tick_params(labelbottom='on')
 ax2.xaxis.set_tick_params(labelbottom='off')
 
 plt.show()
-fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/FigS3_area_correction4.jpg",dpi=300)
+fig.savefig("/Users/igswahwsmcevan/Papers/AK_altimetry/Figures/FigS3_area_correction4_1.jpg",dpi=300)
 
 
 #ESTIMATING MASS BALANCE DEPENDENCY ON AREA BIAS 
