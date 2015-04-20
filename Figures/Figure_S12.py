@@ -28,132 +28,23 @@ import matplotlib.pyplot as plt
 #from numpy.ma import MaskedArray, masked, nomask
 #import numpy.ma as ma
 import pickle
+from Altimetry.Altimetry import *
 #from itertools import product
 
-#import ConfigParser
-#
-#cfg = ConfigParser.ConfigParser()
-#cfg.read(os.path.dirname(__file__)+'/setup.cfg')
-#sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
-from Altimetry.Altimetry import *
-#from Altimetry.Analytics import *
+#plot_hist=False
 
-#def partition_dataset(*args,**kwargs):
-#
-#    for k in kwargs:
-#        if k not in ['interval_min','interval_max','applytoall']:raise "ERROR: Unidentified keyword present"
-#    lamb = [] 
-#    userwheres=[]
-#    userwheres2=[]
-#    notused = []
-#    notused2 = []
-#    zones=[]
-#    if 'interval_max' in kwargs.keys():intervalsmax = kwargs['interval_max']
-#    else:intervalsmax=30
-#    
-#    if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
-#    else:min_interval=5
-#    print 'h'
-#    from itertools import product
-#    for items in product(*list(args)):
-#        print items
-#        userwhere =  " AND ".join(items)
-#
-#        if kwargs:
-#            if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
-#            userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
-#            
-#        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
-#        if type(out)!=NoneType:
-#            userwheres2.append(userwhere2)
-#            userwheres.append(userwhere)
-#            lamb.append(out)
-#            lamb[-1].fix_terminus()
-#            lamb[-1].remove_upper_extrap()
-#            lamb[-1].normalize_elevation()
-#            lamb[-1].calc_dz_stats()
-#            lamb[-1].extend_upper_extrap()
-#            lamb[-1].calc_mb()
-#        else:
-#            notused.append(userwhere)
-#            notused2.append(userwhere2)
-#    return lamb,userwheres2,notused2,userwheres,notused
-    #return 1,2,3
-#
-#    
-#def plotthis(data):
-#    fig = plt.figure(figsize=[10,8])
-#    ax = fig.add_axes([0.11,0.31,0.74,0.6])
-#    for line in data.normdz:pl1 = ax.plot(data.norme, line,'r-',alpha=0.2)
-#    pl1 = ax.plot(data.norme, data.dzs_mean,'k-')
-#    pl2 = ax.plot(data.norme, data.dzs_mean-data.dzs_sem,'k--',data.norme, data.dzs_mean+data.dzs_sem,'k--')    
-#    plt.show()
-#    
-#def partitionbox(axes,data,center,totalwidth,spacing,cchoice,boxwidth=None,showfliers=True):
-#    
-#    if type(boxwidth)==NoneType:boxwidth = (totalwidth-spacing*(len(data)-1))/len(data)
-#    
-#    if len(data)>1:positions = N.linspace(center-totalwidth/2+boxwidth/2,center+totalwidth/2-boxwidth/2,len(data))
-#    else:positions=center
-#    
-#    if showfliers:fly = 'o'
-#    else:fly=''
-#    box = axes.boxplot(data,positions=positions,widths=boxwidth,sym=fly,patch_artist=True,whis=[5,95])
-#    
-#    for clr,bx in zip(cchoice,box['boxes']):
-#        bx.set_facecolor(clr)
-#        bx.set_edgecolor(clr)
-#    for bx in box['medians']:
-#        bx.set_color(color='k')
-#        bx.set_lw(1)
-#    for i,bx in enumerate(box['caps']):
-#        #bx.set_color(color=N.repeat(colorlist,2,axis=0)[i])
-#        bx.set_lw(0)
-#    for clr,bx in zip([x1 for pair in zip(cchoice,cchoice) for x1 in pair],box['whiskers']):
-#        bx.set_color(color=clr)
-#        bx.set_ls('-')
-#        bx.set_lw(2)
-#    
-#    if showfliers:
-#        for clr,bx in zip(cchoice,box['fliers']):
-#            bx.set_markerfacecolor(clr)
-#            bx.set_markeredgecolor(clr)
-#            bx.set_markeredgewidth(0.5)
-#            bx.set_markersize(3)
-#            bx.set_alpha(0.5)
-#
-#
-#                
-#    return box
-#
-#def set_colors(allwhere,condition,usethis,colors=None):
-#    
-#    if type(colors)==NoneType:colors=N.repeat('0.5',len(allwhere))
-#    
-#    a=[]
-#    for i,boo in enumerate([re.search(condition,i)!=None for i in allwhere]):
-#
-#        if boo:a.append(usethis)
-#        else:a.append(colors[i])
-#    return a
-#
-#
-#    
-plot_hist=False
-
-user_where=["FLOOR((ergi.glactype::real-9000)/100)=0 AND gltype.surge='f'","FLOOR((ergi.glactype::real-9000)/100)=1 AND glnames.name!='Columbia'","FLOOR((ergi.glactype::real-9000)/100)=2 AND glnames.name!='Bering' AND glnames.name!='YakutatEast' AND glnames.name!='YakutatWest' AND gltype.surge='f'","gltype.surge='f'"]
-#user_where=["FLOOR((ergi.glactype::real-9000)/100)=0 AND gltype.surge='f'","FLOOR((ergi.glactype::real-9000)/100)=1 AND glnames.name!='Columbia'","FLOOR((ergi.glactype::real-9000)/100)=2 AND glnames.name!='Bering' AND glnames.name!='YakutatWest' AND glnames.name!='YakutatEast' AND gltype.surge='f'"]
-outroot = ["Tidewater","Lake","Land","All"]
+#outroot = ["Tidewater","Lake","Land","All"]
 color = ['k','g','r','r']
 min_interval=5
 intervalsmax=30
-labels = ['<=3yr intervals','3-5 yrs','5-10yrs','>=10yrs','>=3yrs','>=5yrs','Before 2003','After 2002']
-shpfiles = ['intervals_less3yr','intervals_3_5yrs','intervals5_10yrs','intervals_more10yrs','intervals_more3yrs','intervals_more5yrs','Before2003','After2002']
-div1 = '2000-01-01'
-i=0
-print 2
-runall=True
+#labels = ['<=3yr intervals','3-5 yrs','5-10yrs','>=10yrs','>=3yrs','>=5yrs','Before 2003','After 2002']
+#shpfiles = ['intervals_less3yr','intervals_3_5yrs','intervals5_10yrs','intervals_more10yrs','intervals_more3yrs','intervals_more5yrs','Before2003','After2002']
+#div1 = '2000-01-01'
+user = 'evan'
+#i=0
+
+runall=False
 
 if runall:    
     surveyeddata = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True)
@@ -162,7 +53,6 @@ if runall:
     surveyeddata.normalize_elevation()
     surveyeddata.calc_dz_stats()
     #surveyeddata.extend_upper_extrap()
-
 
     outputs = []
     titles = []
@@ -173,7 +63,7 @@ if runall:
     ##All data excluding Columbia, Yakutat and surge-type glaciers
     #################################################################################
     titles.append("No partition")
-    outputs.append(GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere="glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')",get_hypsometry=True))
+    outputs.append(GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere="name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')",get_hypsometry=True))
     outputs[-1].fix_terminus()
     outputs[-1].remove_upper_extrap()
     outputs[-1].normalize_elevation()
@@ -181,110 +71,109 @@ if runall:
     outputs[-1].extend_upper_extrap()
     outputs[-1].calc_mb()
     
-    outp=GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere="gltype.surge='f' AND glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')",get_hypsometry=True)
+    outp=GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere="surge='f' AND name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')",get_hypsometry=True)
     outp.fix_terminus()
     outp.remove_upper_extrap()
     outp.normalize_elevation()
     outp.calc_dz_stats()
     outp.extend_upper_extrap()
 
-    results.append(extrapolate3([outp],[""],insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
-    allwheres.append("gltype.surge='f' AND glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')")
+    results.append(extrapolate(user,[outp],[""],insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
+    allwheres.append("surge='f' AND name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')")
     
     ###Separating Tidewaters
     ##################################################################################
     titles.append("Partitioning\ntidewater")
-    types = ["ergi.gltype IN (0,2)","ergi.gltype=1"]
-    print 'here'
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
-    raise
+    types = ["gltype IN (0,2)","gltype=1"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
     outputs.append(lamb)  
     allwheres.append(whereswo)
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
-    raise
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
+    
     ###Separating Lakes
     ##################################################################################
     titles.append("Partitioning\nlake")
-    types = ["ergi.gltype IN (0,1)","ergi.gltype=2"]
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
+    types = ["gltype IN (0,1)","gltype=2"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
     outputs.append(lamb)  
     allwheres.append(whereswo)
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
     ##Separating Tidewater and Lakes
     #################################################################################
     titles.append("Partitioning\ntidewater and lake")
-    types = ["ergi.gltype=0","ergi.gltype=1","ergi.gltype=2"]
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
+    types = ["gltype=0","gltype=1","gltype=2"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
     outputs.append(lamb)  
     allwheres.append(whereswo)
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"])
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
     #Climate regions with no gltypes
     ################################################################################
     titles.append("Climate zone")
-    regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(regs,applytoall=["ergi.name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
+    regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(regs,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
     outputs.append(lamb) 
     allwheres.append(whereswo)
     
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(regs,applytoall=["gltype.surge='f'","ergi.name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(regs,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
     #OUTSIDE GLACIERS JUST A 100 KM2
-    whereswo.append("ergi.region IS NULL")
+    whereswo.append("region IS NULL")
     lamb.append(lamb[1])
     
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
     #Arendt regions with no gltypes
     ################################################################################
     titles.append("Regions from (9)")
-    regs = ["ergi.region IN ('Aluetian Range','Alaska Range','Brooks Range')","ergi.region IN ('Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Kenai Mountains')","ergi.region IN ('Fairweather Glacier Bay','St. Elias Mountains')","ergi.region IN ('Chugach Range')","ergi.region IN ('Wrangell Mountains')"]
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(regs,applytoall=["ergi.name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
+    regs = ["region IN ('Aluetian Range','Alaska Range','Brooks Range')","region IN ('Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Kenai Mountains')","region IN ('Fairweather Glacier Bay','St. Elias Mountains')","region IN ('Chugach Range')","region IN ('Wrangell Mountains')"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(regs,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],too_few=None)   
     outputs.append(lamb) 
     allwheres.append(whereswo)
     
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(regs,applytoall=["gltype.surge='f'","ergi.name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(regs,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],too_few=None)   
     #OUTSIDE GLACIERS JUST A 100 KM2
-    whereswo.append("ergi.region IS NULL")
+    whereswo.append("region IS NULL")
     lamb.append(lamb[2])
     
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
+
     #Climate regions and gltypes 
     ################################################################################
     titles.append("Climate zone\nand terminus type")
-    types = ["ergi.gltype=0","ergi.gltype=1","ergi.gltype=2"]
-    regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,regs,applytoall=["ergi.name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
+    types = ["gltype=0","gltype=1","gltype=2"]
+    regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,regs,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],too_few=None)   
     outputs.append(lamb) 
     allwheres.append(whereswo)
     
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,regs,applytoall=["gltype.surge='f'","ergi.name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,regs,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],too_few=None)   
     #OUTSIDE GLACIERS JUST A 100 KM2
-    whereswo.append("ergi.region IS NULL")
+    whereswo.append("region IS NULL")
     lamb.append(lamb[1])
     
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
     #Arendt regions and gltypes 
     ################################################################################
     titles.append("Regions from (9)\nand terminus type")
-    types = ["ergi.gltype=0","ergi.gltype=1","ergi.gltype=2"]
-    regs = ["ergi.region IN ('Aluetian Range','Alaska Range','Brooks Range')","ergi.region IN ('Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Kenai Mountains')","ergi.region IN ('Fairweather Glacier Bay','St. Elias Mountains')","ergi.region IN ('Chugach Range')","ergi.region IN ('Wrangell Mountains')"]
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,regs,applytoall=["ergi.name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
+    types = ["gltype=0","gltype=1","gltype=2"]
+    regs = ["region IN ('Aluetian Range','Alaska Range','Brooks Range')","region IN ('Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Kenai Mountains')","region IN ('Fairweather Glacier Bay','St. Elias Mountains')","region IN ('Chugach Range')","region IN ('Wrangell Mountains')"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,regs,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],too_few=None)   
     outputs.append(lamb) 
     allwheres.append(whereswo)
     
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,regs,applytoall=["gltype.surge='f'","ergi.name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])   
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,regs,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],too_few=None)   
     #NO SURVEYED CHUGACH TIDES REPLACING WITH KENAI TIDES
     whereswo.append(notswo[1])
     lamb.append(lamb[7])
@@ -294,46 +183,46 @@ if runall:
     lamb.append(lamb[9])
     
     #OUTSIDE GLACIERS JUST A 100 KM2
-    whereswo.append("ergi.region IS NULL")
+    whereswo.append("region IS NULL")
     lamb.append(lamb[3])
     
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
     ##Separating Tidewater and Lakes min interval 4
     #################################################################################
     titles.append("Partitioning\ntidewater and lake\n min. interval 4 years")
-    types = ["ergi.gltype=0","ergi.gltype=1","ergi.gltype=2"]
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"],interval_min=4)
+    types = ["gltype=0","gltype=1","gltype=2"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],interval_min=4)
     outputs.append(lamb)  
     allwheres.append(whereswo)
     
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"],interval_min=4)
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],interval_min=4)
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
     #Separating Tidewater and Lakes min interval 8
     #################################################################################
     titles.append("Partitioning\ntidewater and lake\n min. interval 8 years")
-    types = ["ergi.gltype=0","ergi.gltype=1","ergi.gltype=2"]
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"],interval_min=8)
+    types = ["gltype=0","gltype=1","gltype=2"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],interval_min=8)
     outputs.append(lamb)  
     allwheres.append(whereswo)
     
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"],interval_min=8)
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],interval_min=8)
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
     #Separating Tidewater and Lakes min interval 10
     #################################################################################
     titles.append("Separating\ntide and lake\n min. interval 10 years")
-    types = ["ergi.gltype=0","ergi.gltype=1","ergi.gltype=2"]
-    #regs = ["ergi.region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","ergi.region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","ergi.region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"],interval_min=10)
+    types = ["gltype=0","gltype=1","gltype=2"]
+    #regs = ["region IN ('Fairweather Glacier Bay','Juneau Icefield','Stikine Icefield','Coast Range BC')","region IN ('Aluetian Range','Chugach Range','St. Elias Mountains','Kenai Mountains')","region IN ('Alaska Range','Wrangell Mountains','Brooks Range')"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],interval_min=10)
     outputs.append(lamb)  
     allwheres.append(whereswo)
     
-    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["gltype.surge='f'","glnames.name NOT IN ('Columbia','YakutatWest','YakutatEast')"],interval_min=10)
-    results.append(extrapolate3(lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=True))
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"],interval_min=10)
+    results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
     pickle.dump([results,outputs,titles,allwheres], open("/Users/igswahwsmcevan/Altimetry/results/all_partitioningoptions.p", "wb" ))
 else:
@@ -404,11 +293,11 @@ center = 0
 allcolors=[]
 for al in allwheres:
     print al  
-    tcolors = set_colors(al,'ergi.gltype=0',list(color[0]),colors=None)
+    tcolors = set_colors(al,'gltype=0',list(color[0]),colors=None)
     #print tcolors
-    tcolors = set_colors(al,'ergi.gltype=1',color[2],colors=tcolors)
+    tcolors = set_colors(al,'gltype=1',color[2],colors=tcolors)
     #print tcolors
-    allcolors.append(set_colors(al,'ergi.gltype=2',color[4],colors=tcolors))
+    allcolors.append(set_colors(al,'gltype=2',color[4],colors=tcolors))
     print allcolors[-1]
     
 
@@ -429,7 +318,7 @@ for j,it in enumerate(zip(outputs,allwheres,allcolors)):
         outputs[j].pop(w)
         allcolors[j].pop(w)
         
-    w2 = N.where(N.array([re.search('ergi.gltype=1',i)!=None for i in it[1]]))[0]
+    w2 = N.where(N.array([re.search('gltype=1',i)!=None for i in it[1]]))[0]
     if len(w2)>0:
         outputs2[j]=N.delete(outputs2[j],w2)
 
