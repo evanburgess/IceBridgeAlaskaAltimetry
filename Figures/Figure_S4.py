@@ -98,17 +98,11 @@ def altimetryintervalstd(starts,ends,onlyone=False):
         if t.rlt_totalkgm2.size<8:raise "Only 8 in this interval set"
 
     return std,n
-            
-runall=True
-if runall:    
-    starts = [1,2,3,4,5,6,8]
-    ends = [1,2,3,4,5,8,30]
-    
-    altstd,altn = altimetryintervalstd(starts,ends,onlyone=False)
+             
+starts = [1,2,3,4,5,6,8]
+ends = [1,2,3,4,5,8,30]
 
-    pickle.dump([altstd,starts,ends,altn], open("/Users/igswahwsmcevan/Altimetry/results/spatialtemporal.p", "wb" ))
-else:
-    altstd,starts,ends,altn = pickle.load(open("/Users/igswahwsmcevan/Altimetry/results/spatialtemporal.p", "rb" ))
+altstd,altn = altimetryintervalstd(starts,ends,onlyone=False)
 
 #BENCHMARK GLACIER DATA
 gulx,guly=plot_benchmark(glaciername="Gulkana Glacier",timeseries=True,cumulative=False)

@@ -89,6 +89,8 @@ for ele in data.ergiid:
 net = N.array(net2)
 colorby=net[:]
 
+
+
 #COLOR TABLE
 pos=N.flipud(N.array([[1,166,189,219],
 [0.5,208,209,230],
@@ -126,7 +128,6 @@ ax = fig.add_axes([0.08,0.06,0.93,0.92])
 
 #FONT SETTINGS
 plt.rc("font", **{"sans-serif": ["Arial"],"size": 12})
-
 
 y = 0.1
 lastregion = data.region[0]

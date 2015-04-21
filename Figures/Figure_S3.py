@@ -165,12 +165,7 @@ def date_regress(x,y):
     return slope*dx+intercept,p_value
     
 #QUERYING DATABASE
-a = True
-if a:
-    d = GetLambData(verbose=False,interval_max=30,interval_min=5,by_column=True,as_object=True,get_hypsometry=True,longest_interval=True,removerepeats=True)   #zzz   
-    pickle.dump(d, open( "/Users/igswahwsmcevan/Desktop/temp6.p", "wb" ))
-else:
-    d = pickle.load(open( "/Users/igswahwsmcevan/Desktop/temp6.p", "rb" ))
+d = GetLambData(verbose=False,interval_max=30,interval_min=5,by_column=True,as_object=True,get_hypsometry=True,longest_interval=True,removerepeats=True)   #zzz   
 
 #CALCULATING GLACIER MASS BALANCE.
 d.fix_terminus()

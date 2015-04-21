@@ -1,35 +1,10 @@
 # -*- coding: utf-8 -*-
-#import xlrd
-#import re
-#import unicodedata
 import numpy as np
-#import datetime as dtm
-#import os
-#import glob
-#import simplekml as kml
-#import subprocess
 import matplotlib.pyplot as plt
-#from osgeo import gdal
-#from types import *
-#import sys
-#import time
-## from mpl_toolkits.basemap import Basemap
-#from matplotlib.collections import PatchCollection
-#from osgeo.gdalnumeric import *
-#import matplotlib.path as mpath
-#import matplotlib.patches as mpatches
-#import matplotlib.mlab as mlab
-#import scipy.misc
-#import matplotlib
-#import matplotlib.colors as colors
-#import matplotlib.cm as cmx
-#import scipy.stats as stats
 import scipy.stats.mstats as mstats
-#from numpy.ma import MaskedArray, masked, nomask
-#import numpy.ma as ma
 import pickle
 from Altimetry.Altimetry import *
-#from itertools import product
+
 
 #FUNCTION TO FIGURE OUT WHAT COLOR EACH BOXPLOT SHOULD BE IN FIGURE 12B
 def set_colors(allwhere,condition,usethis,colors=None):
@@ -143,6 +118,7 @@ if runall:
     lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
     results.append(extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False))
     
+    raise
     ###Partitioning Lakes
     ##################################################################################
     titles.append("Partitioning\nlake")

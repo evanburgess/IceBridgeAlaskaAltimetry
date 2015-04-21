@@ -29,29 +29,17 @@ plt.rc("font", **{"sans-serif": ["Arial"],"size": 12})
 axes=[ax1,ax2,ax3,ax4]
 for i,ax in enumerate(axes):
    
-    data = GetLambData(removerepeats=False,verbose=True,by_column=False,as_object=True,userwhere="ergi.name='%s' AND extract(year from date1)=%s AND extract(year from date2)=%s" % (names[i],year1s[i],year2s[i]))[0]
+    data = GetLambData(removerepeats=False,verbose=True,by_column=False,as_object=True,userwhere="name='%s' AND extract(year from date1)=%s AND extract(year from date2)=%s" % (names[i],year1s[i],year2s[i]))[0]
     data.convert085()
     data.remove_upper_extrap(remove_bottom=True)
     data.normalize_elevation()
     
-      
-    nm = re.findall("^(.*) Glacier",data.name)[0]
-    zdzfile =  "/Users/igswahwsmcevan/Altimetry/zdzfiles/%s.%s.%s.raw.zdz.txt" % (nm,data.date1.year,data.date2.year)
-
-    try:
-        x,y = N.loadtxt(zdzfile,skiprows=1,unpack=True)
-        skip=False
-    except:
-        print 'failed'
-        skip=True
-        
-    #XPT POINTS DOESN'T MATCH ZDZ FILE
-    #print "SELECT dz,z1+z2/2 AS h FROM xpts WHERE lambid=%i;" % data.gid
-    #xys = GetSqlData2("SELECT dz,z1+z2/2 AS h FROM xpts WHERE lambid=%i;" % data.gid)
-    #x = xys['h']
-    #y = xys['dz']
+    pts = GetSqlData2("SELECT z1,dz FROM xpts2 WHERE lambid=%i" % data.lambid)  
+    x = pts['z1']
+    y = pts['dz']
     
-    y*=0.85
+    y*=0.85  # converting to mweq
+    
     ax.plot((x - data.min)/(data.max-data.min),y,'o',alpha=0.04,color=[0.7,0.7,0.7])    #PLOTTING POINTS 
     ax.plot(data.norme,data.normdz,'r',linewidth=1.5,zorder=3) #PLOTTING LINES
 
