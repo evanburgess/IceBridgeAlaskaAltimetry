@@ -27,6 +27,33 @@ from types import *
 import __init__ as init
      
 def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbose=False):
+    """====================================================================================================
+Altimetry.Altimetry.ConnectDb
+
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+    Connect to a postgres database.  
+    
+Returns: 
+        If get_host,get_user, or get_dbname are NOT SET, ConnectDb will return a psycopg2 connection and 
+        cursor to the database as a list.  If 'server' is not specified ConnectDb will connect to the 
+        defaulthost' as declared in the module's __init__.py.  The user can specify a different server
+        by updating __init__.py with the proper information and then specifying the name of the proper
+        dictionary object with the keyword server.
+                   
+connection,cursor = ConnectDb(**kwargs)
+  
+KEYWORD ARGUMENTS:
+    server            Set to True to request that data be returned by column instead of row.
+    get_host,
+    get_user,
+    get_dbname        If set to True, the function will alter modes and instead return the requested
+                      information for the server of interest (either the default server or the one specified).  
+                      Only one of these 3 keywords can be set to True at one time.
+
+====================================================================================================    
+"""
 
     if server == None:server='defaulthost'
 
@@ -47,6 +74,27 @@ def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbos
         return conn,cur
     
 def kurtosistest_evan(a, axis=0):
+    """====================================================================================================
+Altimetry.Altimetry.kurtosistest_evan
+
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+Calculates a kurtosis Z value and probability value that the distribution of data input has 
+non-normal kurtosis.  This funtion is similar to scipy.stats.kurtosistest except the scipy version will 
+throw an error if the dataset gets too small along one axis whereas here we just return a nan.  
+
+                  
+Z,pvalue = kurtosistest_evan(array, axis=0)
+  
+KEYWORD ARGUMENTS:
+    a               An array of data
+    axis            The axis over which to calculate the kurtosis.  This defaults to the 0 axis.            
+
+RETURNS:
+    Z,p             A test Z score and p-value
+====================================================================================================    
+"""
     #a, axis = stats._chk_asarray(a, axis)
     n = N.ma.count(a,axis=axis)
     if N.min(n) < 5 and n.size==1:
@@ -63,8 +111,8 @@ def kurtosistest_evan(a, axis=0):
     E = 3.0*(n-1) / (n+1)
     varb2 = 24.0*n*(n-2)*(n-3) / ((n+1)*(n+1)*(n+3)*(n+5))
     x = (b2-E)/ N.ma.sqrt(varb2)
-    sqrtbeta1 = 6.0*(n*n-5*n+2)/((n+7)*(n+9)) * N.sqrt((6.0*(n+3)*(n+5)) /
-                                                        (n*(n-2)*(n-3)))
+    try:sqrtbeta1 = 6.0*(n*n-5*n+2)/((n+7)*(n+9)) * N.sqrt((6.0*(n+3)*(n+5)) / (n*(n-2)*(n-3)))
+    except Warning: pass
     A = 6.0 + 8.0/sqrtbeta1 * (2.0/sqrtbeta1 + N.sqrt(1+4.0/(sqrtbeta1**2)))
     term1 = 1 - 2./(9.0*A)
     denom = 1 + x* N.ma.sqrt(2/(A-4.0))
@@ -83,6 +131,27 @@ def kurtosistest_evan(a, axis=0):
     
     
 def skewtest_evan(a, axis=0):
+    """====================================================================================================
+Altimetry.Altimetry.skewtest_evan
+
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+Calculates a skew Z value and probability value that the distribution of data input has 
+non-normal skew.  This funtion is similar to scipy.stats.skewtest except the scipy version will 
+throw an error if the dataset gets too small along one axis whereas here we just return a nan.  
+
+                  
+Z,pvalue = skewtest_evan(array, axis=0)
+  
+KEYWORD ARGUMENTS:
+    a               An array of data
+    axis            The axis over which to calculate the kurtosis.  This defaults to the 0 axis.            
+
+RETURNS:
+    Z,p             A test Z score and p-value
+====================================================================================================    
+"""
     #a, axis = _chk_asarray(a, axis)
     if axis is None:
         a = a.ravel()
@@ -96,10 +165,14 @@ def skewtest_evan(a, axis=0):
     elif N.min(n) < 8 and n.size>1:
         warnings.warn("WARNING: Outputting masked array as some rows have less than the 8 samples required")
     y = b2 * N.ma.sqrt(((n+1)*(n+3)) / (6.0*(n-2)))
-    beta2 = (3.0*(n*n+27*n-70)*(n+1)*(n+3)) / ((n-2.0)*(n+5)*(n+7)*(n+9))
+    try:beta2 = (3.0*(n*n+27*n-70)*(n+1)*(n+3)) / ((n-2.0)*(n+5)*(n+7)*(n+9))
+    except Warning:pass
+    
     W2 = -1 + N.ma.sqrt(2*(beta2-1))
-    delta = 1/N.ma.sqrt(0.5* N.ma.log(W2))
-    alpha = N.ma.sqrt(2.0/(W2-1))
+    try:delta = 1/N.ma.sqrt(0.5* N.ma.log(W2))
+    except Warning:pass
+    try:alpha = N.ma.sqrt(2.0/(W2-1))
+    except Warning:pass
     y = N.ma.where(y == 0, 1, y)
     Z = delta*N.ma.log(y/alpha + N.ma.sqrt((y/alpha)**2+1))
     if N.min(n) < 8 and n.size>1: 
@@ -109,7 +182,7 @@ def skewtest_evan(a, axis=0):
  
 def GetSqlData2(select,bycolumn=True):
     """====================================================================================================
-Altimetry.Interface.GetSqlData
+Altimetry.Altimetry.GetSqlData2
 
 Evan Burgess 2013-08-22
 ====================================================================================================
@@ -126,10 +199,7 @@ Returns:
         If you request a MULTIPOLYGON geometry, the geometry will be extracted into a list of coordinates for the
         outer ring and another list of inner rings (which is another list of coordinates).  Data is stored in the 
         dictionary as keys 'inner' and 'outer'.  If there are no inner rings, None is returned.
-        
-        If you request ST_SummaryStats() from a raster stats are separated into values output by that function
-        including, count, sum, mean, stddev, min, max.
-        
+               
 GetSqlData2(select,bycolumn = False):   
 
 ARGUMENTS:        
@@ -206,28 +276,40 @@ def GetLambData(removerepeats=True, days_from_year = 30,interval_min = 0,interva
 latest_date = None, userwhere = "",verbose = False,orderby=None,longest_interval=False,get_geom=False,\
 by_column=True,as_object=False,generalize=None,results=False,density=0.850, density_err= 0.06,acrossgl_err=0.0,get_hypsometry=False,get_glimsid=False):
     """====================================================================================================
-Altimetry.Interface.GetLambData
+Altimetry.Altimetry.GetLambData
 Evan Burgess 2013-08-22
 ====================================================================================================
 Purpose:
-    Extract lamb data using query built from keywords input here.  Any field in glnames,gltype, or lamb can be 
-    used in the query.  
+    This is the primary function to extract Laser Altimetry Mass Balance (LAMB) data from the database.  
+    The key point to understand is that this code does not calculate mass balance from the raw LiDAR point 
+    clouds that are also stored in ice2oceans postgres database. Instead, GetLambData queries a table called
+    lamb that contains the surface elevation profiles change rate profiles for each glacier over each 
+    possible interval.  Each profile was in this table was generated using a semi-manual step (discussed 
+    in Arendt et al., (2002) and Johnson et all. (2013)), where a user defines a bin size, a glacier 
+    polygon etc and then runs a matlab script called 'lamb' to generate a top-bottom profile of surface
+    elevation change rates.  This script also outputs the along profile IQR of the measured surface 
+    elevation change and the mass balance integrated across the user defined glacier polygon.  All of this
+    data is included in the lamb table and output by GetLambData.  The only part of 'lamb' used by Larsen 
+    et al., is the elevation change rate profile and the IQR for each glacier. This script will retrieve 
+    Lambdata for any group of glaciers and survey intervals.  It contains kwargs for you filter what
+    intervals you would like.  It will also return the glacier polygon from the RGI (the one used in
+    Larsen et al., [2015] not Johnson et al. [2013]), the glacier hypsometry, and the Larsen et al., 2015 
+    mass balance estimate.
     
 Returns: 
-    List of dictionaries of requested data. Where each item in the list is a lamb file and each dictionary key
-    corresponds to the name of the column in the database.
+    A dictionary or a lamb object with all attributes available in lamb as well as glacier parameters
+    available in ergi_mat_view for the selection of surveyed glacier intervals chosen.
 
-GetLambData(help, removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None,
-    earliest_date = None, latest_date = None, userwhere = "",verbose = True)    
+lamb_data = GetLambData(*args,**kwargs)    
 
 KEYWORD ARGUMENTS:        
-    removerepeats       Set to True to only select the shortest/non-overlapping intervals.  Set to false to 
-                        include all data.  Default Value=True
+    removerepeats       Set to True to  select only the shortest/non-overlapping intervals for each glacier.  
+                        Set to false to include all data.  Default Value=True
                         
-    longest_interval    Set to True to only retreive the single longest interval for each glacier.
+    longest_interval    Set to True to  retreive only the single longest interval available for each glacier.
                         
     days_from_year      Set the number of days away from 365 to be considered.  For example if you want annual 
-                        intervals to be within  month of each other leave default of 30. If you want sub-annual 
+                        intervals to be within month of each other leave default of 30. If you want sub-annual 
                         (seasonal data) set to 365.  Default Value = 30
                         
     interval_min        Minimum length of interval in years. This is a rounded value so inputing 1 will include
@@ -240,23 +322,31 @@ KEYWORD ARGUMENTS:
     
     latest_date         Latest date of second acquistion. Enter as string 'YYYY-MM-DD'. Default = None
     
-    userwhere = ""      User can input additional queries as a string to a where statement.
-                        Example input:"glnames.name like '%Columbia%' AND ergi.area > 10"
+    userwhere = ""      Enter as string.  User can input additional queries as a string to a where statement. Any fields in 
+                        ergi_mat_view or lamb2 are valid
+                        Example input:"name NOT LIKE '%Columbia%' AND area > 10"
                         
     verbose             Verbose output. Default = True
     
-    get_geom            Set to True to retrieve the Geometry of the glacier polygon
+    get_geom            Set to True to retrieve the geometry of the glacier polygon
     
     generalize          Set to a value to simplify geometries
-    
-    join                You can either select 'inner' joins or 'left' joins to the other tables. If inner
-                        joins are selected only lamb entries with a glimsid and an entry in the gltype table
-                        are considered.  Others are removed.  Let will include all entries in the lamb table
-                        whether or not they have other attributes attached to them.
-                
-    by_column           Get data organized by column instead of by lamb file
+               
+    by_column           Get data organized by column instead of by lamb file (Default=True)
     
     as_object           Get data output as a LambObject.  Only works if by_column = True (Default=True)
+    
+    get_glimsid         Set to true to retrieve each glaciers glimsid as well.
+    
+    results             Set to true to retrieve the mass balance of the glacier as is estimated by Larsen et. 
+                        al. (2015)
+                        
+    orderby             List of fields in which you would like to order your sample by.  For example: 
+                        ['name','area DESC'].  Requesting a specific order will slow the query.
+                        
+    get_hypsometry      Retrieve the glacier hypsometry as available in ergibins2.  This will add three fields
+                        to the output: bins,normbins,and binned_area.  See ergibins2 for explanations of these
+                        fields.
     
 ====================================================================================================        
         """
@@ -273,7 +363,6 @@ KEYWORD ARGUMENTS:
     'lamb2.balmodel',
     'lamb2.bal25diff',
     'lamb2.bal75diff',
-    #'ergi2.glimsid',  # I DONT THINK WE NEED THE GLIMSID SINCE WE ARE UPGRADING TO ERGIID
     'ergi_mat_view.surge',
     'ergi_mat_view.gltype',
     'ergi_mat_view.name',
@@ -288,12 +377,6 @@ KEYWORD ARGUMENTS:
     'lamb2.numdata',
     'ergi_mat_view.max::real',
     'ergi_mat_view.min::real',
-    #'flx2.eb_bm_flx',
-    #'flx2.eb_best_flx',
-    #'flx2.eb_low_flx',
-    #'flx2.eb_high_flx',
-    #'flx2.eb_bm_err',
-    #'flx2.bm_length',
     'ergi_mat_view.continentality',
     'ergi_mat_view.area::double precision']
 
@@ -301,8 +384,6 @@ KEYWORD ARGUMENTS:
     tables = [
     "FROM lamb2",
     "LEFT JOIN ergi_mat_view ON lamb2.ergiid=ergi_mat_view.ergiid"]
-    #"INNER JOIN ergi2 ON lamb2.ergiid=ergi_mat_view.ergiid",  # I DONT THINK WE NEED THE GLIMSID SINCE WE ARE UPGRADING TO ERGIID
-    #"LEFT JOIN tidewater_flux2 as flx2 on ergi_mat_view.ergiid=flx2.ergiid"]  
     
     if get_glimsid:
         fields.append('ergi2.glimsid')
@@ -314,7 +395,6 @@ KEYWORD ARGUMENTS:
             fields.append("ST_Simplify(ergi_mat_view.albersgeom, %s) as albersgeom" % generalize)
         else: 
             fields.append("ergi_mat_view.albersgeom as albersgeom")
-            
 
     #OPTION TO RETRIEVE ALTIMETRY RESULTS FOR THIS GLACIER FROM LARSEN ET AL 2013
     if results:
@@ -351,9 +431,9 @@ KEYWORD ARGUMENTS:
     
     #ADDING USER SPECIFIED WHERE
     if userwhere!='':wheres.append(userwhere)
-    #if omit: where = where+" AND omit='f'"
     if len(wheres)!=0:wheres[0] = "WHERE %s" % wheres[0]
-    #print orderby_init
+
+    #INITIAL ORDER BY NEEDED FOR removerepeats
     if len(orderby_init)!=0:orderby_init[0] = "ORDER BY %s" % orderby_init[0]
     
     #MAKING THE SELECT QUERY
@@ -404,11 +484,8 @@ KEYWORD ARGUMENTS:
         if by_column:s = LambToColumn(s)
     else:
         if not re.search("^\s*ORDER BY",orderby[0], re.IGNORECASE): orderby[0]="ORDER BY %s" % orderby[0]
-        print "NOTE: Chosing orderby lengthens the querytime of GetLambData"
-        #s = GetSqlData2(select+'WHERE lamb.gid IN ('+re.sub('[\[\]]','',str(keeplist))+") ORDER BY "+orderby+";", bycolumn=by_column)
+        print "NOTE: Choosing orderby lengthens the querytime of GetLambData"
         lambids = [str(i['lambid']) for i in s]
-        #print "','".join(lambids)
-        #print "SELECT %s %s WHERE lamb2.lambid IN ('%s') %s;" % (",".join(fields),' '.join(tables),"','".join(lambids),",".join(orderby))
         s = GetSqlData2("SELECT %s %s WHERE lamb2.lambid IN ('%s') %s;" % (",".join(fields),' '.join(tables),"','".join(lambids),",".join(orderby)), bycolumn=by_column)
         
         if get_hypsometry:
@@ -421,301 +498,6 @@ KEYWORD ARGUMENTS:
                 s['bins'].append(hyps['bins'])
                 s['normbins'].append(hyps['normbins'])
                                                                 
-    #                                                                            
-    #if orderby == None:
-    #    #print len(s)
-    #    s = N.delete(N.array(s),deletelist)
-    #    #print len(s)
-    #    if by_column:s = LambToColumn(s)
-    #else:
-    #    s = GetSqlData2(select+'WHERE lamb.gid IN ('+re.sub('[\[\]]','',str(keeplist))+") ORDER BY "+orderby+";", bycolumn=by_column)
-    #    
-    #if verbose:print len(s),' of rows in lamb selected.'
-
-
-    if len(s) == 0: return None
-
-    if as_object:
-        if type(s) == dict:
-            s=LambObject(s)
-            print 'object'
-        elif type(s) == list or type(s) == N.ndarray:
-            s = [LambObject(row) for row in s]
-            print 'list'
-       
-    return s  
-
-    
-##################################################################################################################  
-##################################################################################################################    
-def GetLambData_OLD(removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None ,earliest_date = None,\
-latest_date = None, userwhere = "",verbose = False,orderby=None,join='inner',longest_interval=False,get_geom=False,get_geog=False,\
-by_column=True,as_object=False,omit=True,generalize=None,results=False,density=0.850, density_err= 0.06,acrossgl_err=0.0,get_hypsometry=False):
-    """====================================================================================================
-Altimetry.Interface.GetLambData
-Evan Burgess 2013-08-22
-====================================================================================================
-Purpose:
-    Extract lamb data using query built from keywords input here.  Any field in glnames,gltype, or lamb can be 
-    used in the query.  
-    
-Returns: 
-    List of dictionaries of requested data. Where each item in the list is a lamb file and each dictionary key
-    corresponds to the name of the column in the database.
-
-GetLambData(help, removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None,
-    earliest_date = None, latest_date = None, userwhere = "",verbose = True)    
-
-KEYWORD ARGUMENTS:        
-    removerepeats       Set to True to only select the shortest/non-overlapping intervals.  Set to false to 
-                        include all data.  Default Value=True
-                        
-    longest_interval    Set to True to only retreive the single longest interval for each glacier.
-                        
-    days_from_year      Set the number of days away from 365 to be considered.  For example if you want annual 
-                        intervals to be within  month of each other leave default of 30. If you want sub-annual 
-                        (seasonal data) set to 365.  Default Value = 30
-                        
-    interval_min        Minimum length of interval in years. This is a rounded value so inputing 1 will include
-                        an interval of 0.8 years if it passes the days_from_year threshold above. Default = 0 
-                        
-    interval_max        Maximum length of interval in years. This is a rounded value so inputing 3 will include
-                        an interval of 3.1 years if it passes the days_from_year threshold  above. Default = None
-                        
-    earliest_date       Earliest date of first acquistion. Enter as string 'YYYY-MM-DD'. Default = None
-    
-    latest_date         Latest date of second acquistion. Enter as string 'YYYY-MM-DD'. Default = None
-    
-    userwhere = ""      User can input additional queries as a string to a where statement.
-                        Example input:"glnames.name like '%Columbia%' AND ergi.area > 10"
-                        
-    verbose             Verbose output. Default = True
-    
-    get_geom            Set to True to retrieve the Geometry of the glacier polygon
-    
-    generalize          Set to a value to simplify geometries
-    
-    join                You can either select 'inner' joins or 'left' joins to the other tables. If inner
-                        joins are selected only lamb entries with a glimsid and an entry in the gltype table
-                        are considered.  Others are removed.  Let will include all entries in the lamb table
-                        whether or not they have other attributes attached to them.
-                
-    by_column           Get data organized by column instead of by lamb file
-    
-    as_object           Get data output as a LambObject.  Only works if by_column = True (Default=True)
-    
-    omit                Default will ignore glaciers labeled as omit in the gltype table.  Set to false
-                        to include these glaciers
-====================================================================================================        
-        """
-    
-    select1 = """select \
-lamb.gid,\
-lamb.glid,\
-lamb.date1,\
-lamb.date2,\
-lamb.interval,\
-lamb.volmodel,\
-lamb.vol25diff,\
-lamb.vol75diff,\
-lamb.balmodel,\
-lamb.bal25diff,\
-lamb.bal75diff,\
-ergi.glimsid,\
-gltype.surge,\
-gltype.tidewater,\
-gltype.lake,\
-gltype.river,\
-gltype.glaciertype,\
-glnames.name as lambname,\
-glnames.region,\
-lamb.e,\
-lamb.dz,\
-lamb.dz25,\
-lamb.dz75,\
-lamb.aad,\
-lamb.masschange,\
-lamb.massbal,\
-lamb.numdata,\
-ergi.gltype,\
-ergi.glactype,\
-ergi.region,\
-ergi.max::real,\
-ergi.min::real,\
-ergi.continentality,\
-ergi.area::double precision,\
-ergi.name,\
-"""
-
-#flx.eb_bm_flx,\
-#flx.eb_best_flx,\
-#flx.eb_low_flx,\
-#flx.eb_high_flx,\
-#flx.eb_bm_err,\
-#flx.bm_length,\
-#flx.smb,\
-
-#ergi.max,\
-#ergi.mn_dist_coast,\
-#ergi.mn_elev,\
-#ergi.meanVel,\
-
-
-    if get_geom:
-        if generalize != None: select2 = "ST_Simplify(ergi.albersgeom, %s) as albersgeom," % generalize
-        else: select2 = "ergi.albersgeom as albersgeom,"
-    elif get_geog: 
-        if generalize != None: select2 = "ST_Simplify(ergi.geog::geometry, %s) as geog," % generalize
-        else: select2 = "ergi.geog as geog,"
-    else: select2 = ''
-
-    select3 = """lamb.numdata \
-from lamb inner join glnames on glnames.gid=lamb.glid inner join gltype on glnames.gid=gltype.glid
-inner join ergi on glnames.glimsid=ergi.glimsid"""# left join tidewater_flux as flx on ergi.glimsid=flx.glimsid """    
-
-    if results:
-        select1 = select1 + "rlt.rlt_totalGt,rlt.rlt_totalkgm2,rlt.rlt_errGt,rlt.rlt_errkgm2,rlt.rlt_singlerrGt,rlt.rlt_singlerrkgm2,"
-        
-        #select3 = select3 + """ LEFT JOIN (SELECT rlt.glimsid,
-        #SUM(rlt.area)/1e6::real as area, 
-        #SUM(rlt.mean*rlt.area)/1e9*%5.3f::real as rlt_totalGt,
-        #(((((SUM(rlt.error*rlt.area)/SUM(rlt.mean*rlt.area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(rlt.mean*rlt.area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as rlt_errGt,
-        #SUM(rlt.mean*rlt.area)/SUM(rlt.area)*%5.3f::real as rlt_totalkgm2,
-        #(((((SUM(rlt.error*rlt.area)/SUM(rlt.mean*rlt.area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(rlt.mean*rlt.area)/SUM(rlt.area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_errkgm2,
-        #(((((SUM(rlt.singl_std*rlt.area)/SUM(rlt.mean*rlt.area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(rlt.mean*rlt.area)/1e9*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_singlerrkgm2,
-        #(((((SUM(rlt.singl_std*rlt.area)/SUM(rlt.mean*rlt.area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(rlt.mean*rlt.area)/SUM(rlt.area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_singlerrGt
-        #FROM resultsauto as rlt GROUP BY rlt.glimsid) as rlt on ergi.glimsid=rlt.glimsid """ % (density,density_err,density, density, acrossgl_err,density,
-        #density_err,density, density, acrossgl_err,density_err,density, density, acrossgl_err,density_err,density, density, acrossgl_err)
-
-        select3 = select3 + """ LEFT JOIN (SELECT glimsid,
-        SUM(area)/1000000. as area,
-        SUM(mean*area)/1e9*%5.3f::real as rlt_totalGt,
-        SUM(mean*area)/SUM(area)*%5.3f::real as rlt_totalkgm2,
-        (((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as rlt_errGt,
-        (((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_errkgm2,
-        (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_singlerrkgm2,
-        (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as rlt_singlerrGt 
-        FROM resultsauto GROUP BY glimsid) as rlt on ergi.glimsid=rlt.glimsid """ % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err)
-
-    select = select1+select2+select3
-    
-
-
-
-#ST_AsText(ergi.albersgeom) as geom \
-
-    if longest_interval:removerepeats = False
-
-    if join != 'inner': re.sub('inner join','left join',select)     
-    
-    if longest_interval:
-        order = """ order by glnames.name,lamb.interval DESC;"""
-        removerepeats = False
-    else:order = """ order by glnames.name,lamb.date1,lamb.interval;"""
-    
-    where = 'WHERE' 
-    
-    if days_from_year != None: where = where+' AND ((interval % 365) > '+str(365-days_from_year)+' OR (interval % 365) < '+str(days_from_year)+')'
-    if interval_min != None: where = where+' AND (ROUND(interval/365.) >= '+str(interval_min)+')'
-    if interval_max != None: where = where+' AND (ROUND(interval/365.) <= '+str(interval_max)+')'
-    if earliest_date != None: where = where+" AND date1 >= '"+str(earliest_date)+"'"
-    if latest_date != None: where = where+" AND date2 <= '"+str(latest_date)+"'"
-    if omit: where = where+" AND omit='f'"
-    
-    
-    userwhere2 = re.sub('where','',userwhere, re.IGNORECASE)
-    userwhere2 = re.sub('^\s*and\s*','',userwhere2, re.IGNORECASE)
-    userwhere2 = re.sub('^\s*','',userwhere2)
-    userwhere2 = re.sub('\s*$','',userwhere2)
-    if userwhere != '':userwhere2 = ' AND '+userwhere2+' '
-    
-    where = where+userwhere2
-    
-    where = re.sub('WHERE AND','WHERE',where)
-     
-    if verbose:print select+where+order
-    
-    s = GetSqlData2(select+where+order,bycolumn=False)
-    if type(s)==NoneType: return None
-    #print s[0].keys()
-    deletelist = []
-    keeplist = []
-    lastgl = ''
-    lastdate = dtm.date(1900,1,1)
-    
-    if removerepeats:
-        if verbose: print'Filtering lamb entries:'
-        for i,row in enumerate(s):
-
-            if row['name'] == lastgl:
-                #print '  ',row['lamb.date1'],lastdate
-                if row['date1'] < lastdate:
-                    deletelist.append(i)
-                    if verbose:print '  ',row['name'],row['date1'],row['date2'],'-- Omitted'
-                else:
-                    lastdate = row['date2']
-                    if verbose:print row['name'],row['date1'],row['date2']
-                    keeplist.append(row['gid'])
-            else: 
-                lastgl = row['name']
-                lastdate = row['date2']
-                if verbose:print row['name'],row['date1'],row['date2']
-                keeplist.append(row['gid'])
-                
-    if longest_interval:
-        if verbose: print'Filering for longest interval:'
-        for i,row in enumerate(s):
-
-            if row['name'] == lastgl:
-                #print '  ',row['lamb.date1'],lastdate
-                #if row['lamb.date1'] < lastdate:
-                deletelist.append(i)
-                if verbose:print '  ',row['name'],row['date1'],row['date2'],row['interval'],'-- Omitted'
-                #else:
-                #    lastdate = row['lamb.date2']
-                #    if verbose:print row['glnames.name'],row['lamb.date1'],row['lamb.date2']
-                #    keeplist.append(row['lamb.gid'])
-            else: 
-                lastgl = row['name']
-                lastdate = row['date2']
-                if verbose:print row['name'],row['date1'],row['date2'],row['interval']
-                keeplist.append(row['gid'])
-        
-    if orderby == None:
-        #print len(s)
-        s = N.delete(N.array(s),deletelist)
-        if get_hypsometry:
-            for i in s:
-                hyps = GetSqlData2("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins3 WHERE glimsid='%s' ORDER BY normbins" % i['glimsid'])
-                for key in ('binned_area','bins','normbins'):i[key]=hyps[key]
-        
-        if by_column:s = LambToColumn(s)
-    else:
-        s = GetSqlData2(select+'WHERE lamb.gid IN ('+re.sub('[\[\]]','',str(keeplist))+") ORDER BY "+orderby+";", bycolumn=by_column)
-        
-        if get_hypsometry:
-            s['binned_area'] = []
-            s['bins'] = []
-            s['normbins'] = []
-            for glimsidt in s['glimsid']:
-                #print glimsidt
-                hyps = GetSqlData2("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins3 WHERE glimsid='%s' ORDER BY normbins" % glimsidt)
-                s['binned_area'].append(hyps['binned_area'])
-                s['bins'].append(hyps['bins'])
-                s['normbins'].append(hyps['normbins'])
-                                                                
-    #                                                                            
-    #if orderby == None:
-    #    #print len(s)
-    #    s = N.delete(N.array(s),deletelist)
-    #    #print len(s)
-    #    if by_column:s = LambToColumn(s)
-    #else:
-    #    s = GetSqlData2(select+'WHERE lamb.gid IN ('+re.sub('[\[\]]','',str(keeplist))+") ORDER BY "+orderby+";", bycolumn=by_column)
-    #    
-    #if verbose:print len(s),' of rows in lamb selected.'
-
-
     if len(s) == 0: return None
 
     if as_object:
@@ -729,7 +511,17 @@ inner join ergi on glnames.glimsid=ergi.glimsid"""# left join tidewater_flux as 
     return s  
       
 class LambObject:
+    """====================================================================================================
+Altimetry.Altimetry.LambObject
+Evan Burgess 2015-04-22
+====================================================================================================
+Laser Altimetry Mass Balance Class
+        This class contains various attributes and methods that apply to a laser altimetry interval on a
+        single glacier mass balance or a colection of laser altimetry mass balances on many glaciers 
+        and/or on many intervals. See table comments for explanations of each variable.
+    """
     def __init__(self, indata):
+        
         #print indata.keys()
         for i,key in enumerate(indata.keys()):
             if 'lambid' in indata.keys():self.lambid = indata['lambid']
@@ -786,13 +578,42 @@ class LambObject:
             if 'normbins' in indata.keys():self.normbins = indata['normbins']    
             
     def convert085(self):
+        """Convert attributes dz,dz25 and dz75 to units of water equivalent instead of 
+surface elevation change.
+"""
         self.dz = [dz * 0.85 for dz in self.dz]
         self.dz25 = [dz * 0.85 for dz in self.dz25]
         self.dz75 = [dz * 0.85 for dz in self.dz75]
             
 
     def normalize_elevation(self,gaussian = None):
-        
+        """====================================================================================================
+Altimetry.Altimetry.normalize_elevation
+
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+Normalize the elevation range in the elevation bins listed in lamb.  This normalization assumes the 
+max and min elevation is that available in the ergi2 table fields max and min.  This function 
+creates and updates the class attributes: self.norme,self.normdz,self.norm25,self.norm75,
+self.survIQRs. This works for an individual glacier or a group within the object.
+                  
+normalize_elevation(self,gaussian = None)
+  
+KEYWORD ARGUMENTS:
+    gaussian        Set to True to place a gaussian smooth over the normalized data
+
+RETURNS:
+    self.norme,self.normdz,self.norm25,self.norm75,self.survIQRs
+    
+    norme           The normalized elevation of each bin where 0.00 is the glacier bottom
+                    1 is the glacier top. 
+    normdz,norm25,
+    norm75,
+    survIQRs        Respectively, the elevation change rate profile, 1st, and 3rd quartiles, and IQR
+                    of the profile on the normalized scale norme                    
+====================================================================================================    
+"""        
         if type(self.name) == list:
         
             #mn = N.min([N.min(x) for x in self.e])
@@ -843,31 +664,7 @@ class LambObject:
                 self.norm75.append(new75shold) 
                 self.survIQRs.append(iqr)
 
-#            for j,obj in enumerate(self.dz25):
-#            
-#                if gaussian != None:
-#                    interval = self.e[j][1]-self.e[j][0]
-#                    sigma_intervals = gaussian / interval
-#                    
-#
-#                else: 
-#                    y25 = obj
-#                    y75 = self.dz75[j]
-#                
-#                e = self.e[j].astype(N.float32)
-#                x = (e-N.min(e))/(N.max(e)-N.min(e))
-#            
-#                new25shold = N.interp(self.norme,x,y25,N.nan,N.nan)
-#                new75shold = N.interp(self.norme,x,y75,N.nan,N.nan)
-#                iqr = new75shold - new25shold 
-#                
-#
-#
-#                
-#                self.norm25.append(new25shold)         
-#                self.norm75.append(new75shold) 
-#                self.survIQRs.append(iqr)
-#                
+               
             return self.norme,self.normdz,self.norm25,self.norm75,self.survIQRs
         else:
                   
@@ -919,8 +716,34 @@ class LambObject:
             
         return self.norme,self.normdz,self.norm25,self.norm75,self.survIQRs
         
-    def calc_mb (self,units='area normalized'):
-        
+    def calc_mb(self,units='area normalized'):
+        """====================================================================================================
+Altimetry.Altimetry.calc_mb
+
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+Adds a new attribute to the object self.mb which is a glacier mass balance estimate given the lamb 
+data, a normalized surface elevation change profile (from normalize_elevation) and a glacier hypsometry
+(run GetLambData with 'get_hypsometry=True').  This works for an individual glacier or a group within 
+the object.
+                  
+calc_mb(self,units='area normalized')
+  
+KEYWORD ARGUMENTS:
+    units        Set to True to place a gaussian smooth over the normalized data
+
+RETURNS:
+    self.norme,self.normdz,self.norm25,self.norm75,self.survIQRs
+    
+    norme           The normalized elevation of each bin where 0.00 is the glacier bottom
+                    1 is the glacier top. 
+    normdz,norm25,
+    norm75,
+    survIQRs        Respectively, the elevation change rate profile, 1st, and 3rd quartiles, and IQR
+                    of the profile on the normalized scale norme                    
+====================================================================================================    
+"""        
         if not 'binned_area' in dir(self):raise "ERROR: Need to first run GetLambData with 'get_hypsometry=True'"
         if not 'normdz' in dir(self):raise "ERROR: need to run normalize_elevation method first."
         if not type(self.name) == list:raise "ERROR: Object needs to be BY column"
@@ -935,6 +758,47 @@ class LambObject:
         self.mb = N.array(binvol)
         
     def calc_dz_stats(self,masked_array=False,too_few=None):
+        """====================================================================================================
+Altimetry.Altimetry.calc_dz_stats
+
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+Calculates various statistics for the sample within the object. Requires that one normalize_elevation 
+first.
+                  
+calc_dz_stats(self,masked_array=False,too_few=None)
+  
+KEYWORD ARGUMENTS:
+    units        Set to True to place a gaussian smooth over the normalized data
+
+RESULT:
+      Adds the following attributes to the lamb object:
+          quadsum          Quadrature sum of the sample along profile (m/yr) along the normalized profile.  
+                           Used as an estimate of surveyed glacier uncertainty for the region when 
+                           integrated over all surveyed glaciers in this sample.   
+          dzs_std          Standard Deviation along the normalized profile. 
+          dzs_mean         Mean surface elevation change rate (m/yr) along the normalized profile.
+          dzs_median       Median surface elevation change rate (m/yr) along the normalized profile.
+          dzs_madn         NormalizedMAD of surface elevation change rate (m/yr) along the normalized profile.
+          dzs_sem          Standar error of the mean (m/yr) along the normalized profile. Used as an estimate 
+                           of surveyed glacier uncertainty for the region when integrated over all 
+                           unsurveyed glaciers
+          normalp          P-value probablitiy of normality along profile
+          skewz/p          Z-score and p-value for test of whether the sample elevation change rates
+                           have a skew that is non-normal along profile
+          kurtz/p          Z-score and p-value for test of whether the sample elevation change rates
+                           have a skew that is non-normal along profile.
+          skew             The skew of the distribution along profile.
+          kurtosis         The kurtosis of the distribution along profile.
+          percentile_5     The 5th percentile of the distribution along profile (m/yr).
+          quartile_1       The first quartile of the distribution along profile (m/yr).
+          percentile_33    The 33rd percentile of the distribution along profile (m/yr).
+          percentile_66    The 66th percentile of the distribution along profile (m/yr).
+          quartile_3       The 3rd quartile of the distribution along profile (m/yr).
+          percentile_95    The 95th percentile of the distribution along profile (m/yr).     
+====================================================================================================    
+"""        
         if not type(self.name) == list:raise "ERROR: Object needs to be BY column"
         if not hasattr(self, 'normdz'):raise "ERROR: need to run normalize_elevation method first."
     
@@ -948,9 +812,7 @@ class LambObject:
         #    newys2 = N.ma.masked_array(newys2,N.isnan(newys2))
             #survIQR = N.ma.masked_array(survIQR,N.isnan(new25))
         
-        #print type(newys3)
-        #print newys3.shape
-            
+          
             #if label != None: label = "%s N=%s" % (label,len(s))
             #newys3 = N.ma.masked_array(newys2,N.isnan(newys2))
     
@@ -977,25 +839,24 @@ class LambObject:
         self.dzs_median = N.ma.median(newys2,axis=0)
         
         #IF THERE ARE TOO FEW VALUES TO PRODUCE A MEAN THEN EXTEND USING THE LAST GOOD MEAN ESTIMATE.
+        #print "type too feww %s" % too_few
         if type(too_few) != NoneType:
             wenough = N.where(self.dzs_n>too_few)[0]
             x = N.arange(len(self.dzs_n))[wenough]
-            print wenough,x
-            
+
             quadsum = self.quadsum[wenough]
             dzs_std = self.dzs_std[wenough]
             dzs_sem = self.dzs_sem[wenough]
             dzs_mean = self.dzs_mean[wenough]
             dzs_madn = self.dzs_madn[wenough]
             dzs_median = self.dzs_median[wenough]
-                                    
+
             self.quadsum = N.interp(N.arange(len(self.dzs_n)),x,quadsum)
             self.dzs_std = N.interp(N.arange(len(self.dzs_n)),x,dzs_std)
             self.dzs_sem = N.interp(N.arange(len(self.dzs_n)),x,dzs_sem)
             self.dzs_mean = N.interp(N.arange(len(self.dzs_n)),x,dzs_mean)
             self.dzs_madn = N.interp(N.arange(len(self.dzs_n)),x,dzs_madn)
             self.dzs_median = N.interp(N.arange(len(self.dzs_n)),x,dzs_median)
-
          
         self.normalp=[] 
         for ty in newys2.T:
@@ -1004,12 +865,14 @@ class LambObject:
                 Wstat,pval1 = stats.shapiro(ty)
                 self.normalp.append(pval1)
             else:  self.normalp.append(N.nan)
-        try:     
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")    
             self.skewz,self.skewp = skewtest_evan(N.ma.masked_array(newys2,mask=N.isnan(newys2)),axis=0)
-        except Warning:pass
-        self.kurtz,self.kurtp = kurtosistest_evan(newys2,axis=0)  
-        self.skew = stats.skew(newys2,axis=0)
-        self.kurtosis = stats.kurtosis(newys2,axis=0)
+
+            self.kurtz,self.kurtp = kurtosistest_evan(newys2,axis=0)  
+            self.skew = stats.skew(newys2,axis=0)
+            self.kurtosis = stats.kurtosis(newys2,axis=0)
         
         self.percentile_5, self.quartile_1,self.percentile_33,self.percentile_66,self.quartile_3,self.percentile_95 = mstats.mquantiles(newys2,prob=[0.05,0.25,0.33,0.66,0.75,0.95],axis=0)
         self.interquartile_rng = self.quartile_3-self.quartile_1
@@ -1021,6 +884,7 @@ class LambObject:
         self.quadratcluster = var/N.mean(ptspercell)
           
     def calc_residuals_zscores(self):
+        """Calculate along profile z-scores of surface elevation change rates.  Creates two new attributes self.resids and self.zscores."""
         if not hasattr(self, 'normdz'):raise "ERROR: need to run normalize_elevation method first."
         if not hasattr(self, 'dzs_mean'):raise "ERROR: need to run calc_dz_stats method first."
         
@@ -1030,6 +894,13 @@ class LambObject:
         for curve in self.resids:self.zscores.append(curve/self.dzs_std)
     
     def get_approx_location(self):
+        """Finds the approximate location of the first overflight in each bin.  This is useful for plotting the surface elevation
+change data on a map.  We say approximate location because this isn't the actual flightline, rather this script just finds the LIDAR
+crossing point with the elevation closest to each bin's middle elevation and assigns that point as the location.  The values are not
+returned rather the output coordinates are added as attributes to the object:
+            self.approxlon
+            self.approxlat
+"""
         
         self.approxlon=[]
         self.approxlat=[]
@@ -1046,11 +917,11 @@ class LambObject:
             
             normz = (sortd - N.min(self.e[k]))/(N.max(self.e[k])-N.min(self.e[k]))
             
-            print 'normz',len(normz)
-            print 'e',N.max(self.e[k]),N.min(self.e[k])
-            print 'sorted',N.max(sortd),N.min(sortd)
-            print 'normz',N.max(normz),N.min(normz)
-            print 'normk',self.norme[k]
+            #print 'normz',len(normz)
+            #print 'e',N.max(self.e[k]),N.min(self.e[k])
+            #print 'sorted',N.max(sortd),N.min(sortd)
+            #print 'normz',N.max(normz),N.min(normz)
+            #print 'normk',self.norme[k]
             
             x=[xy.x for xy in sortgeog]
             y=[xy.y for xy in sortgeog]
@@ -1059,6 +930,26 @@ class LambObject:
             self.approxlat.append(N.interp(self.norme, normz, y,N.nan,N.nan))
           
     def fix_terminus(self,slope=-0.05,error=1):
+        """====================================================================================================
+Altimetry.Altimetry.fix_terminus
+
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+Correct profile/s for a retreating terminus as exemplified in figure S11.
+                  
+fix_terminus(slope=-0.05,error=1)
+  
+KEYWORD ARGUMENTS:
+    slope       The threshold used to determine how steep the reduction in thinning rate needs to be 
+                to qualify as a section that needs to be corrected.  I played with this a lot and the
+                default value of -0.05 worked best.
+    error       The 1 quartile width to set as the error for the corrected portion of the profile
+
+RETURNS:
+This does not return anything rather it just 'fixes the surface elevation change profiles in the
+object.  Specifically it changes dz,dz25 and dz75.                
+===================================================================================================="""
         if not type(self.numdata) == list:
             cumulative = N.cumsum(self.numdata)
             
@@ -1069,10 +960,8 @@ class LambObject:
             self.dz25 = N.where(cumulative == 0, N.nan,self.dz25)
             self.dz75 = N.where(cumulative == 0, N.nan,self.dz75)
             
-            deriv = N.ediff1d(self.dz)#ediff1d
-            #print lambobj.dz
-            #print deriv
-            
+            deriv = N.ediff1d(self.dz)
+                        
             for i,bn in enumerate(deriv):
                 if not N.isnan(bn):
                     if bn < slope and self.dz[i]<0.1: 
@@ -1113,6 +1002,12 @@ class LambObject:
                 self.dz75[j] = N.where(nanreplace, self.dz75[j][i] + error,self.dz75[j])
                 
     def remove_upper_extrap(self,remove_bottom=True,erase_mean=True,add_mask=True):
+        """The LAMB matlab code extrapolates  to the glacier head and glacier terminus when data does not make it 
+all of the way to the top or bottom.  While this is appropriate for individual glacier mass balance, 
+it isn't really appropriate when using a profile to extrapolate to other glaciers because one is making 
+big assumptions about mass change in areas that are unsurveyed.  So this method removes those extrapolations
+by masking the top and bottom although removing the bottom is optional with the keyword remove_bottom.
+"""
         
         if type(self.name)==list:
             for i in xrange(len(self.name)):
@@ -1150,6 +1045,9 @@ class LambObject:
                 self.mask=logic
 
     def extend_upper_extrap(self):
+        """LAMB fexcludes a portition of the glacier hypsometry if a part of it goes up really high on a peak.  Since we are using the RGI this can 
+leave bins with no values.  For these cases where this is a problem, this will extend the top of the lamb profile to the top of the ERGI glacier bins.
+"""
         if not hasattr(self, 'kurtosis'):raise "ERROR: need to run calc_dz_stats method first."
         
         if not (self.dzs_n != 1).all():
@@ -1276,7 +1174,9 @@ class LambObject:
                 self.interquartile_rng[bottom]=self.interquartile_rng[replbottom]
                 
 def LambToColumn(data):
-
+    """Convert a dictionary output by GetLambData from rows to columns.  This function is used by GetLambData if the
+'by_column keyword is present.
+"""
     out = {}
     for j,column in enumerate(data[0].keys()):out[column]=[]
         
@@ -1295,23 +1195,87 @@ def LambToColumn(data):
     return out
     
 def partition_dataset(*args,**kwargs):
+    """====================================================================================================
+Altimetry.Altimetry.partition_dataset
+Evan Burgess 2013-08-22
+====================================================================================================
+Purpose:
+    This is a convience function that simplifies partitioning the altimetry dataset in anyway the user would like.  
+    Simply this function loops through GetLambData and returns a list of Lamb objects.  This function
+    assumes you are using the longest interval available for each glacier.  This function is meant to be
+    used in conjuction with extrapolate.  Together these two functions will allow the user to estimate the 
+    regional mass balance using any set of data and partitioning that they choose.      
+
+Returns: 
+    A 5 element list of the following:lamb,userwheres,notused,whereswo,notswo
+        
+        lamb        A list of LambObjects for each of the partitioned groups specfied in the paritioning argument
+                    These are in the same order as in partitioning argument.  If any of the groups requested have
+                    no glaciers in them, that LambObject is excluded. 
+                     
+        userwheres  The where statements that were used to filter altimetry intervals for each group.  This 
+                    combines the where statments in partitioning, apply_to_all and interval_min/max .  Note if no
+                    glaciers exist in that group, the where is not output here, and instead will come out in
+                    notused.
+                    
+        notused     If any of the groups specifieid by partitioning have no glaciers in them, that where 
+                    statement is returned here.
+                    
+        whereswo    Same as userwheres but does not include the where statements associated with the apply_to_all
+                    argument.  This is useful when used with extrapolate.
+                    
+        notswo      Same as notused but does not include the where statements associated with the apply_to_all
+                    argument.
+
+      
+EXAMPLE:
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(["gltype=0","gltype=1","gltype=2"],
+        interval_max=10,interval_min=5,
+        applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
     
+ARGUMENT:
+    partitioning    A list of strings that would go into where statements that describe each partition individually.  
+                    In the example above, in larsen et al. we divide our extrapolation by terminus type. So we
+                    have three groups, each with a where statement that says either "gltype=0","gltype=1",
+                    or "gltype=2".  These are listed in this first argument.  Do not include the "WHERE or ANDs."
+                    This list must be as long as the number of groups you are partitioning.
+                    
+KEYWORD ARGUMENTS:
+    apply_to_all    There may also be requirments that apply to all of the groups.  In our example above, we don't 
+                    want surge glaciers or a few specific outliers.  Requirements for all groups are listed here, as
+                    in the example above.  You can list as many or as few (None) as you want.
+        
+    interval_min
+    interval_max    This has a similar effect to apply to all, it is just a easier way to specify requirements
+                    on the interval length. Numbers can be entered as an int. (Default = 5,30 for min and max
+                    respectively) 
+
+    too_few         When calculating kurtosis we normaly require samples to be larger than 4.  If you happen
+                    to be choosing groups with a sample size smaller than 4 set this to None and ignore the 
+                    Kurtosis, and for that matter skew etc. as that is a really small sample.  (Default = 4)                    
+====================================================================================================        
+"""
 
     for k in kwargs:
-        if k not in ['interval_min','interval_max','applytoall']:raise "ERROR: Unidentified keyword present"
+        if k not in ['interval_min','interval_max','applytoall','too_few']:raise "ERROR: Unidentified keyword present"
     lamb = [] 
     userwheres=[]
     userwheres2=[]
     notused = []
     notused2 = []
     zones=[]
+    
     if 'interval_max' in kwargs.keys():intervalsmax = kwargs['interval_max']
     else:intervalsmax=30
     
     if 'interval_min' in kwargs.keys():min_interval = kwargs['interval_min']
-    else:min_interval=5
+    else:interval_min=5
     
+    if 'too_few' not in kwargs.keys(): too_few=4
+    else: too_few=kwargs['too_few']
     
+    print 'too_few %s' % too_few
+
     for items in iterproduct(*list(args)):
         userwhere =  " AND ".join(items)
 
@@ -1320,7 +1284,7 @@ def partition_dataset(*args,**kwargs):
             userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
             print userwhere2
             
-        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=min_interval,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
+        out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=interval_min,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
         if type(out)!=NoneType:
             userwheres2.append(userwhere2)
             userwheres.append(userwhere)
@@ -1328,7 +1292,7 @@ def partition_dataset(*args,**kwargs):
             lamb[-1].fix_terminus()
             lamb[-1].remove_upper_extrap(remove_bottom=False)
             lamb[-1].normalize_elevation()
-            lamb[-1].calc_dz_stats(too_few=4)
+            lamb[-1].calc_dz_stats(too_few=too_few)
             lamb[-1].extend_upper_extrap()
             lamb[-1].calc_mb()
                        
@@ -1338,7 +1302,12 @@ def partition_dataset(*args,**kwargs):
     return lamb,userwheres2,notused2,userwheres,notused
 
 def coords_to_polykml (outputfile, inpt,inner=None, name=None,setcolors=None):
-
+    """Outputs polygons to a kml. Warning this isn't super robust.  But here you can enter an 
+output filepath and an input geometry that would be returned by GetSqlData2. Sspefically it will
+take geometries as dictionariers with 'outer' and 'inner' keys to include the 
+outer ring and the inner rings.  This also allows you to set the polygon color.  You can 
+set setcolors='random' and it will make each polygon a random color instead of the same color. 
+"""
     colors = ['e6d8ad','8A2BE2','A52A2A','DEB887','5F9EA0','7FFF00','D2691E','FF7F50','6495ED','FFF8DC','DC143C','00FFFF','00008B','008B8B','B8860B','A9A9A9','006400','BDB76B','8B008B','556B2F','FF8C00','9932CC','8B0000','E9967A','8FBC8F','483D8B','2F4F4F','00CED1','9400D3','FF1493','00BFFF','696969','1E90FF','B22222','FFFAF0','228B22','FF00FF','DCDCDC','F8F8FF','FFD700','DAA520','808080']        
     print len(colors)
     c = 0
@@ -1384,490 +1353,12 @@ def coords_to_polykml (outputfile, inpt,inner=None, name=None,setcolors=None):
             
     kmlf.savekmz(outputfile) 
     
-def PlotByGlacier(s,x,y,separators,forlegend,xtitle=None,ytitle=None,title = None, colors=['bo','ro','go','yo','mo','ko','co'],label=False,savefile=None,show=False,yrange=[-5,5],alpha=0.5, xlog = False,labelsize=15,ticklabelsize=13,lgdlabelsize=13,showfit=False):
-
-    allx = []
-    ally = []
-    leglbl = forlegend[:]
-    #print 'forlegend', forlegend
-    fig1 = plt.figure(facecolor='white',figsize=[10,8])
-    ax1 = fig1.add_subplot(111)
-    if xtitle != None: ax1.set_xlabel(xtitle,size=labelsize)
-    if ytitle != None: ax1.set_ylabel(ytitle,size=labelsize)
-    if title != None: ax1.set_title(title)
-    ax1.set_ylim(yrange[0],yrange[1])
-    if xlog: ax1.set_xscale('log')
-    for i in xrange(len(s)):
-        if x in s[i]:
-            for j,separate in enumerate(separators):
-                
-                #print '_______________________________'
-                #print s[i].keys()
-                #print separate.keys(),len(separate.keys()),i,j, s[i][x], s[i][y],j,colors
-                if len(separate.keys()) == 1:
-                    if s[i][separate.keys()[0]] == separate[separate.keys()[0]]:
-                        if showfit:
-                            allx.append(s[i][x])
-                            ally.append(s[i][y])
-                        if re.search('donezo',leglbl[j]):ax1.plot(s[i][x], s[i][y],colors[j],mew = 0,alpha = alpha)
-                        else:
-                            ax1.plot(s[i][x], s[i][y],colors[j],mew = 0,alpha = alpha,label=leglbl[j])
-                            leglbl[j]='donezo'
-                        if label:
-                            if type(s[i][x]) == int or type(s[i][x]) == float:
-                                lbl = ax1.text(s[i][x], s[i][y],s[i]['name'])
-                                lbl.set_size(7)
-                            if type(s[i][x]) == N.ndarray:
-                                lbl = ax1.text(s[i][x][-1], s[i][y][-1],s[i]['name'])
-                                lbl.set_size(7) 
-                if len(separate.keys()) == 2:
-                    if s[i][separate.keys()[0]] == separate[separate.keys()[0]] and s[i][separate.keys()[1]] == separate[separate.keys()[1]]:
-                        if showfit:
-                            allx.append(s[i][x])
-                            ally.append(s[i][y])
-                        if re.search('donezo',leglbl[j]):ax1.plot(s[i][x], s[i][y],colors[j],mew = 0,alpha = alpha)
-                        else:
-                            ax1.plot(s[i][x], s[i][y],colors[j],mew = 0,alpha = alpha,label=leglbl[j])
-                            leglbl[j]='donezo'
-                        if label:
-                            if type(s[i][x]) == int or type(s[i][x]) == float:
-                                lbl = ax1.text(s[i][x], s[i][y],s[i]['name'])
-                                lbl.set_size(7)
-                            if type(s[i][x]) == N.ndarray:
-                                lbl = ax1.text(s[i][x][-1], s[i][y][-1],s[i]['name'])
-                                lbl.set_size(7) 
-                if len(separate.keys()) == 3:
-                    if s[i][separate.keys()[0]] == separate[separate.keys()[0]] and s[i][separate.keys()[1]] == separate[separate.keys()[1]] and s[i][separate.keys()[2]] == separate[separate.keys()[2]]:
-                        if showfit:
-                            allx.append(s[i][x])
-                            ally.append(s[i][y])
-                        if re.search('donezo',leglbl[j]):ax1.plot(s[i][x], s[i][y],colors[j],mew = 0,alpha = alpha)
-                        else:
-                            ax1.plot(s[i][x], s[i][y],colors[j],mew = 0,alpha = alpha,label=leglbl[j])
-                            leglbl[j]='donezo'
-                        if label:
-                            if type(s[i][x]) == int or type(s[i][x]) == float:
-                                lbl = ax1.text(s[i][x], s[i][y],s[i]['name'])
-                                lbl.set_size(7)
-                            if type(s[i][x]) == N.ndarray:
-                                lbl = ax1.text(s[i][x][-1], s[i][y][-1],s[i]['name'])
-                                lbl.set_size(7) 
-                if len(separate.keys()) == 4:
-                    if s[i][separate.keys()[0]] == separate[separate.keys()[0]] and s[i][separate.keys()[1]] == separate[separate.keys()[1]] and s[i][separate.keys()[2]] == separate[separate.keys()[2]] and s[i][separate.keys()[3]] == separate[separate.keys()[2]]:
-                        if showfit:
-                            allx.append(s[i][x])
-                            ally.append(s[i][y])
-                        if re.search('donezo',leglbl[j]):ax1.plot(s[i][x], s[i][y],colors[j],mew = 0,alpha = alpha)
-                        else:
-                            ax1.plot(s[i][x], s[i][y],colors[j],mew = 0,alpha = alpha,label=leglbl[j])
-                            leglbl[j]='donezo'
-                        if label:
-                            if type(s[i][x]) == int or type(s[i][x]) == float:
-                                lbl = ax1.text(s[i][x], s[i][y],s[i]['name'])
-                                lbl.set_size(7)
-                            if type(s[i][x]) == N.ndarray:
-                                lbl = ax1.text(s[i][x][-1], s[i][y][-1],s[i]['name'])
-                                lbl.set_size(7) 
-
-    if showfit:
-        fit = N.polyfit(allx,ally,1)
-        print fit
-        fittxt = "%s = %.6f * %s + %.2f" % (y,fit[0],x,fit[1])
-        fit_fn = N.poly1d(fit)
-    	ax1.plot(allx,fit_fn(allx),'-k')
-        ax1.text(N.max(allx), N.max(fit_fn(allx)),fittxt,horizontalalignment='right')
-        
-    ax1.legend(prop={'size':lgdlabelsize})
-    for tick in ax1.yaxis.get_major_ticks():tick.label.set_fontsize(ticklabelsize)
-    for tick in ax1.xaxis.get_major_ticks():tick.label.set_fontsize(ticklabelsize)
-    
-    if savefile != None:fig1.savefig(savefile,dpi=300)
-    if show:plt.show()
-    else:
-        fig1.clear()
-        plt.close(fig1)
-        fig1=None  
-
-def PlotByGlacierLines(s,x,y,separators,forlegend,xtitle,ytitle,colors=['b','r','g','y','k','m'],label=False,savefile=None,show=False,yrange=[-5,5],alpha=0.5,labelsize = 0.9):
-
-    leglbl = forlegend[:]
-    #print 'forlegend', forlegend
-    fig1 = plt.figure(facecolor='white',figsize=[10,8])
-    ax1 = fig1.add_subplot(111)
-    ax1.set_xlabel(xtitle)
-    ax1.set_ylabel(ytitle)
-    #ax1.set_ylim(yrange[0],yrange[1])
-    names = list(set([i['name'] for i in s]))
-    
-    def plotlines(axis,s2,x,y,color,alpha=0.5,labelsize = 9,label=False,forleg = None):
-        
-        if len(s2[y]) == 1: symbol = color+'.'
-        else:symbol = color+'-'
-        axis.plot(s2[x], s2[y],symbol,mew = 0,alpha = alpha,label=forleg)
-        if label:
-            #if type(s[x][0]) == int or type(s[i][0]) == float:
-            if i % 2 == 0:
-                ytext = min(s2[y])
-            else:
-                ytext = max(s2[y])
-            lbl = axis.text(s2[x][0], ytext,s2['name'][0],clip_on=True)
-            lbl.set_size(9)
-    print colors
-    for i,name in enumerate(names):
-        s2 = LambToColumn(extract_records(s, 'name',name))
-        #print len(s2['lamb.date1'])
-        for j,separate in enumerate(separators):
-            if len(separate.keys()) == 1:
-                if s[i][separate.keys()[0]] == separate[separate.keys()[0]]: 
-                    plotlines(ax1,s2,x,y,colors[j],alpha=alpha,labelsize = labelsize,label=label,forleg = leglbl[j])
-                    leglbl[j]=None
-            if len(separate.keys()) == 2:
-                if s[i][separate.keys()[0]] == separate[separate.keys()[0]] and s[i][separate.keys()[1]] == separate[separate.keys()[1]]:
-                    plotlines(ax1,s2,x,y,colors[j],alpha=alpha,labelsize = labelsize,label=label,forleg = leglbl[j])
-                    leglbl[j]=None
-            if len(separate.keys()) == 3:
-                if s[i][separate.keys()[0]] == separate[separate.keys()[0]] and s[i][separate.keys()[1]] == separate[separate.keys()[1]] and s[i][separate.keys()[2]] == separate[separate.keys()[2]]:
-                    plotlines(ax1,s2,x,y,colors[j],alpha=alpha,labelsize = labelsize,label=label,forleg = leglbl[j])
-                    leglbl[j]=None
-            if len(separate.keys()) == 4:
-                if s[i][separate.keys()[0]] == separate[separate.keys()[0]] and s[i][separate.keys()[1]] == separate[separate.keys()[1]] and s[i][separate.keys()[2]] == separate[separate.keys()[2]] and s[i][separate.keys()[3]] == separate[separate.keys()[2]]:
-                    plotlines(ax1,s2,x,y,colors[j],alpha=alpha,labelsize = labelsize,label=label,forleg = leglbl[j])
-                    leglbl[j]=None
-    
-    ax1.legend()
-    
-    if savefile != None:fig1.savefig(savefile)
-    if show:plt.show()
-    else:
-        fig1.clear()
-        plt.close(fig1)
-
-def extract_records(data, field,value,operator = '=='):
-    ext = []
-    if operator == '==': 
-        for i,one in enumerate(data):
-            if one[field] == value:ext.append(data[i])
-    elif operator == '<=': 
-        for i,one in enumerate(data):
-            if one[field] <= value:ext.append(data[i])
-    elif operator == '>=': 
-        for i,one in enumerate(data):
-            if one[field] >= value:ext.append(data[i])
-    elif operator == '<': 
-        for i,one in enumerate(data):
-            if one[field] < value:ext.append(data[i])
-    elif operator == '>': 
-        for i,one in enumerate(data):
-            if one[field] > value:ext.append(data[i])
-    elif operator == '!=': 
-        for i,one in enumerate(data):
-            if one[field] != value:ext.append(data[i])
-    return ext
-    
-def PlotIntervals(data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = mpl.cm.RdYlBu,colorrng = None,ticklabelsize=13,categorysize=15):
-    """====================================================================================================
-Altimetry.Analytics.PlotIntervals
-
-Evan Burgess 2013-10-18
-====================================================================================================
-Purpose:
-    Plotting intervals retreived from Lamboutput data.
-    
-Usage:PlotIntervals(data,outputfile=None,show=True)
-
-    data        Output from GetLambData.  Keywords bycolumn = True and ,orderby = 'glnames.region,glnames.name,lamb.date1,lamb.date2'
-        
-    outputfile  Full path
-    
-    show        Set to False to not display figure
-====================================================================================================        
-        """
-    
-    #regions = sorted(list(set(s.region)))
-    #names = (list(set(s.name)))
-  
-
-    
-    
-    years    = YearLocator()   # every year
-    months   = MonthLocator()  # every month
-    yearsFmt = DateFormatter('%Y')
-    
-    fig = plt.figure(figsize=[14,15])
-    ax = fig.add_axes([0.22,0.04,0.77,0.94])
-
-    #CREATING COLOR BARS
-    cm = plt.get_cmap(colorbar) 
-    if type(colorrng) == NoneType:colorrng = [colorby.min(),colorby.max()]
-    cNorm  = colors.Normalize(vmin=colorrng[0], vmax=colorrng[1])
-    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-    
-    #CREATING TEMPORARY PLOT TO RETRIEVE COLORBAR
-    #fig = plt.figure(figsize=[15,10])
-    #ax = fig.add_axes(position)
-    colorbarim = ax.imshow([colorby],extent=[0,0.1,0,0.1],cmap=colorbar,vmin=colorrng[0], vmax=colorrng[1])
-    plt.clf()
-    ax = fig.add_axes([0.22,0.04,0.77,0.94])
-    
-    y = 0.1
-    lastregion = data.region[0]
-    lastgl = ''
-    lastrgbottom = 0.1
-    for i in xrange(len(data.name)): 
-        if lastregion != data.region[i]:
-            
-            ax.annotate(data.region[i-1]+'  ',xy=[min(data.date1),(lastrgbottom+y)/2.],annotation_clip=False,ha='right')
-            
-            lastrgbottom = y
-            y += 0.6
-            
-        if colorby == None:
-            if lastgl != data.name[i]:
-                color = N.random.rand(3,1)
-        else:
-            color = scalarMap.to_rgba(colorby[i])
-
-            
-        pt = ax.plot_date([data.date1[i],data.date2[i]], [y,y], '-',color=color,lw=1.5)
-        #print dir(ax.xaxis)
-        if annotate: ax.annotate(data.name[i], [data.date1[i],y],fontsize=8)
-        y +=0.1
-        lastregion = data.region[i]
-        lastgl = data.name[i]
-    
-    ax.set_ylim([0.,y])        
-    ax.annotate(data.region[i]+'  ',xy=[min(data.date1),(lastrgbottom+y)/2.],annotation_clip=False,ha='right',size=categorysize)
-    # format the ticks
-    ax.xaxis.set_major_locator(years)
-    ax.xaxis.set_major_formatter(yearsFmt)
-    ax.xaxis.set_minor_locator(months)
-    ax.yaxis.set_ticks([])
-    for tick in ax.xaxis.get_major_ticks():tick.label.set_fontsize(ticklabelsize)
-    ax.autoscale_view()
-    #ax2 = fig.add_axes([0.77,0.04,0.1,0.94]) 
-    cax, kw = clbr.make_axes(ax)
-    #clr = clbr.ColorbarBase(cax,cmap=colorbar)#,"right", size="5%", pad='2%',fig=fig)#)
-    clr = clbr.Colorbar(cax,colorbarim) 
-    clr.set_label('Balance (m)',size = ticklabelsize)
-
-#    # format the coords message box
-#    #def price(x): return '$%1.2f'%x
-#    #ax.fmt_xdata = DateFormatter('%Y-%m-%d')
-#    #ax.fmt_ydata = price
-#    #ax.grid(True)
-    
-    fig.autofmt_xdate()
-    if type(outputfile) == str:
-        fig.savefig(outputfile,dpi=500)
-        plt.close()
-    if show:plt.show()
-    
-def PlotIntervals2(ax,data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = mpl.cm.RdYlBu,colorrng = None,ticklabelsize=13,categorysize=15):
-    """====================================================================================================
-Altimetry.Analytics.PlotIntervals
-
-Evan Burgess 2013-10-18
-====================================================================================================
-Purpose:
-    Plotting intervals retreived from Lamboutput data.
-    
-Usage:PlotIntervals(data,outputfile=None,show=True)
-
-    data        Output from GetLambData.  Keywords bycolumn = True and ,orderby = 'glnames.region,glnames.name,lamb.date1,lamb.date2'
-        
-    outputfile  Full path
-    
-    show        Set to False to not display figure
-====================================================================================================        
-        """
-    
-    #regions = sorted(list(set(s.region)))
-    #names = (list(set(s.name)))
-  
-
-    
-    
-    years    = YearLocator()   # every year
-    months   = MonthLocator()  # every month
-    yearsFmt = DateFormatter('%Y')
-    
-    #fig = plt.figure(figsize=[14,15])
-    #ax = fig.add_axes([0.22,0.04,0.77,0.94])
-    
-    #CREATING TEMPORARY PLOT TO RETRIEVE COLORBAR
-    #fig = plt.figure(figsize=[15,10])
-    ##ax = fig.add_axes(position)
-    #colorbarim = ax.imshow([colorby],extent=[0,0.1,0,0.1],cmap=colorbar,vmin=colorrng[0], vmax=colorrng[1])
-    #plt.clf()
-    #ax = fig.add_axes([0.22,0.04,0.77,0.94])
-    print N.c_[data.region,data.name,data.balmodel,data.date1]
-
-    regions,date1,date2,name,colorby2 = zip(*sorted(zip(data.region,data.date1,data.date2,data.name,colorby)))
-    print N.c_[regions,name,colorby2,date1]
-    #regions = sorted(data.region)
-
-    #if type(colorby) != NoneType:colorby2 = [x for (t,x) in sorted(zip(data.region,colorby))]
-    
-    #CREATING COLOR BARS
-    cm = plt.get_cmap(colorbar) 
-    if type(colorrng) == NoneType:colorrng = [colorby.min(),colorby.max()]
-    cNorm  = colors.Normalize(vmin=colorrng[0], vmax=colorrng[1])
-    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm) 
-#[x for (y,x) in sorted(zip(a,b))]
-
-    
-    y = 0.1
-    lastregion = regions[0]
-    lastgl = ''
-    lastrgbottom = 0.1
-    for i in xrange(len(data.name)): 
-        if lastregion != regions[i]:
-            
-            ax.annotate(regions[i-1]+'  ',xy=[min(date1),(lastrgbottom+y)/2.],annotation_clip=False,ha='right')
-            
-            lastrgbottom = y
-            y += 0.6
-            
-        if colorby == None:
-            if lastgl != name[i]:
-                color = N.random.rand(3,1)
-        else:
-            color = scalarMap.to_rgba(colorby2[i])
-
-            
-        pt = ax.plot_date([date1[i],date2[i]], [y,y], '-',color=color,lw=1.5)
-        #print dir(ax.xaxis)
-        if annotate: ax.annotate(name[i], [date1[i],y],fontsize=8)
-        y +=0.1
-        lastregion = regions[i]
-        lastgl = name[i]
-    
-    ax.set_ylim([0.,y])        
-    ax.annotate(regions[i]+'  ',xy=[min(date1),(lastrgbottom+y)/2.],annotation_clip=False,ha='right',fontsize=8)
-    # format the ticks
-    ax.xaxis.set_major_locator(years)
-    ax.xaxis.set_major_formatter(yearsFmt)
-    ax.xaxis.set_minor_locator(months)
-    ax.yaxis.set_ticks([])
-    #for tick in ax.xaxis.get_major_ticks():tick.label.set_fontsize(ticklabelsize)
-    #ax.autoscale_view()
-    ##ax2 = fig.add_axes([0.77,0.04,0.1,0.94]) 
-    #cax, kw = clbr.make_axes(ax)
-    ##clr = clbr.ColorbarBase(cax,cmap=colorbar)#,"right", size="5%", pad='2%',fig=fig)#)
-    #clr = clbr.Colorbar(cax,colorbarim) 
-    #clr.set_label('Balance (m)',size = ticklabelsize)
-
-#    # format the coords message box
-#    #def price(x): return '$%1.2f'%x
-#    #ax.fmt_xdata = DateFormatter('%Y-%m-%d')
-#    #ax.fmt_ydata = price
-#    #ax.grid(True)
-    #
-    #fig.autofmt_xdate()
-    #if type(outputfile) == str:
-    #    fig.savefig(outputfile,dpi=500)
-    #    plt.close()
-    #if show:plt.show()
-    
-def PlotIntervalsByType(data,outputfile=None,show=True,annotate=False,colorby=None,colorbar = mpl.cm.RdYlBu,colorrng = None,ticklabelsize=13):
-    """====================================================================================================
-Altimetry.Analytics.PlotIntervals
-
-Evan Burgess 2013-10-18
-====================================================================================================
-Purpose:
-    Plotting intervals retreived from Lamboutput data.
-    
-Usage:PlotIntervals(data,outputfile=None,show=True)
-
-    data        Output from GetLambData.  Keywords bycolumn = True and ,orderby = 'glnames.region,glnames.name,lamb.date1,lamb.date2'
-        
-    outputfile  Full path
-    
-    show        Set to False to not display figure
-====================================================================================================        
-        """
-    
-    #regions = sorted(list(set(s.region)))
-    #names = (list(set(s.name)))
-  
-
-    
-    
-    years    = YearLocator()   # every year
-    months   = MonthLocator()  # every month
-    yearsFmt = DateFormatter('%Y')
-    
-    fig = plt.figure(figsize=[14,15])
-    ax = fig.add_axes([0.22,0.04,0.77,0.94])
-
-    #CREATING COLOR BARS
-    cm = plt.get_cmap(colorbar) 
-    if type(colorrng) == NoneType:colorrng = [colorby.min(),colorby.max()]
-    cNorm  = colors.Normalize(vmin=colorrng[0], vmax=colorrng[1])
-    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
-    
-    #CREATING TEMPORARY PLOT TO RETRIEVE COLORBAR
-    #fig = plt.figure(figsize=[15,10])
-    #ax = fig.add_axes(position)
-    colorbarim = ax.imshow([colorby2],extent=[0,0.1,0,0.1],cmap=colorbar,vmin=colorrng[0], vmax=colorrng[1])
-    plt.clf()
-    ax = fig.add_axes([0.22,0.04,0.77,0.94])
-    
-    y = 0.1
-    lastregion = data.glaciertype[0]
-    lastgl = ''
-    lastrgbottom = 0.1
-    for i in xrange(len(data.name)): 
-        if lastregion != data.glaciertype[i]:
-            
-            ax.annotate(data.glaciertype[i-1]+'  ',xy=[min(data.date1),(lastrgbottom+y)/2.],annotation_clip=False,ha='right')
-            
-            lastrgbottom = y
-            y += 0.6
-            
-        if colorby == None:
-            if lastgl != data.name[i]:
-                color = N.random.rand(3,1)
-        else:
-            color = scalarMap.to_rgba(colorby2[i])
-
-            
-        pt = ax.plot_date([data.date1[i],data.date2[i]], [y,y], '-',color=color,lw=2)
-        #print dir(ax.xaxis)
-        if annotate: ax.annotate(data.name[i], [data.date1[i],y],fontsize=6)
-        y +=0.1
-        lastregion = data.glaciertype[i]
-        lastgl = data.name[i]
-    
-    ax.set_ylim([0.,y])        
-    ax.annotate(data.glaciertype[i]+'   ',xy=[min(data.date1),(lastrgbottom+y)/2.],annotation_clip=False,ha='right')
-    # format the ticks
-    ax.xaxis.set_major_locator(years)
-    ax.xaxis.set_major_formatter(yearsFmt)
-    ax.xaxis.set_minor_locator(months)
-    ax.yaxis.set_ticks([])
-    for tick in ax.xaxis.get_major_ticks():tick.label.set_fontsize(ticklabelsize)
-
-    ax.autoscale_view()
-    #ax2 = fig.add_axes([0.77,0.04,0.1,0.94]) 
-    cax, kw = clbr.make_axes(ax)
-    #clr = clbr.ColorbarBase(cax,cmap=colorbar)#,"right", size="5%", pad='2%',fig=fig)#)
-    clr = clbr.Colorbar(cax,colorbarim) 
-   
-#    # format the coords message box
-#    #def price(x): return '$%1.2f'%x
-#    #ax.fmt_xdata = DateFormatter('%Y-%m-%d')
-#    #ax.fmt_ydata = price
-#    #ax.grid(True)
-    
-    fig.autofmt_xdate()
-    if type(outputfile) == str:
-        fig.savefig(outputfile,dpi=400)
-        plt.close()
-    if show:plt.show()
     
 def mad (inpu,axis=None,normalized=False):
+    """Calculates a Median Absolute Deviation of an input dataset.  MAD can be calculated along a single axis
+if specfied by the axis keyword.  If you would like a normalized MAD (MADn) then set the keyword normalized=True
+    """
+    
     data = N.ma.masked_array(inpu,N.isnan(inpu))
 
     if axis == None:
@@ -1886,348 +1377,108 @@ def mad (inpu,axis=None,normalized=False):
 
         if normalized: return 1.4826*out
         else: return out
+       
+def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_tbls=False, export_shp=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
+    """====================================================================================================
+Altimetry.Altimetry.extrapolate
+Evan Burgess 2013-08-22
+====================================================================================================
+Purpose:
+    This function extrapolates to unsurveyed glaciers and returns estimates of mass balance for all glaciers,
+    including surveyed glaciers in the ERGI. This function is intended to work with partition dataset where
+    partition dataset splits the altimetry dataset up into samples and then this function applies those
+    sample mean curves to glaciers of choice.  There are some subltetys to how this works so pay attention here.
+    In effort to give the user the maximum flexibility this function will allow you to give yourself results
+    that make no sense.  So you must be careful and also examine your outputs.  There is an example below:
+        
+            
+extrapolate(user,groups,selections,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, 
+    export_shp=None,density=0.850, density_err= 0.06,acrossgl_err=0.0)
+    
+ARGUMENTS:
+    user            Input a string that states the user name.  This funtion will output a table with the name 
+                    alt_result_[user]X where X is 1 or if the user has a table already this script will not over-
+                    write so the number will be increased incrementally.  This will prevent different users from
+                    confusing their results.
+                    
+    groups          A list lamb objects output by partition dataset, each element in the list is a single curve
+                    that the user intends to apply to some group of glaciers.  It is critical here to note that 
+                    the glaciers that receive a specifc elevation profile do NOT need to be at all related to the
+                    glaciers that made the profile.  This will be clarified further on.  
+                    
+    selections      A list of strings that specify where statements that describe where each group from the group 
+                    argument should be applied.  This should be of the same length and same intended order of the lamb
+                    list presented for the groups argument.  The KEY here is that the user must insure that the 
+                    selections together, include EVERY SINGLE glacier in the ergi AND don't ever have overlapping
+                    selections either.  Said another way the selections list must be comprehsive of the glacier 
+                    inventory and each selection is mututally exclusive of the others.  See the example below for 
+                    further clarification.
+                    
+                    
+KEYWORD ARGUMENTS:
+    insert_surveyed_data    Set to a lamb object that includes glaciers, for which, you would like to insert the
+                            actual surveyed glacier profile into the regional estimate.  If this keyword is left 
+                            blank, we use the extrapolation curves are applied to all glaciers in the selections
+                            argument even if they were surveyed glaciers (Default = None)
+                    
+        
+    keep_postgres_tbls      Set to True if the user wishes to retain the output dataset (Default=False).  If so,
+                            this table will be called alt_result_[user]X
+                            
+    export_shp              Set to a pathname if the user would like to output the table as a shpfile for viewing 
+                            in a GIS.
+    
+    density                 Set to the assumed density (Default=0.85)
+    
+    density_err             Set to the assumed density uncertainty (Default=0.06)
+    
+    acrossgl_err            Set to the assumed across glacier uncertainty (Default=0.0)
+                    
+    
+Returns: 
+    A dictionary of dictionaries containing partitioned mass balance results. Where glaciers are divided in the following ways:
+        A dictionary with the following keys regardless of your partitioned choices:
+            
+            bysurveyed          Mass balance of glaciers divided by whether they were 'surveyed' or 'unsurveyed' for the data input.
+            bytype              Same but divided by terminus type
+            all                 Same but the region as a whole.
+            bytype_survey       Same but divided by terminus type and whether they were 'surveyed' or 'unsurveyed' for the data input.
+            
+            Within each of these groups the summed mass balance is presented in another dictionary with keys:
 
-def PlotDzRange(s,axes,gaussian = 60,color = 'b',label=None,alphafill=0.2,plotindiviudallines=False,robust=False,normalize_elev=False,dontplot=False):
-    step = 10
-    mn = N.min([N.min(x['e']) for x in s])
-    mx = N.max([N.max(x['e']) for x in s])
-    if  normalize_elev:
-	newx = N.arange(0,1,0.01,dtype=N.float32)
-	print 'newx', newx
-    else:
-        newx = N.arange(mn,mx+step,step,dtype=N.float32)
-        
-        
-        
-    newys = []
-
-    for obj in s:
+area        Total area of group
+totalkgm2   Mean mass balance in m w eq/yr  (yes it says kgm2)
+errkgm2     Mean mass balance error in m w eq/yr  (yes it says kgm2)
+totalgt     Total mass balance Gt/yr 
+errgt       Total mass balance error Gt/yr. Note this does not include the 50% increase in error for tidewater glaciers nor the area
+            dependency correction that is discused in larsen et al.  Those should to be added manually if the user wishes.
+            
+If the keyword keep_postgres_tbls=True, the result table will be retained in the database and will allow
+the user to query and view this table (in a GIS) to evaluate the extrapolation further.         
       
-        if gaussian != None:
-            interval = obj['e'][1]-obj['e'][0]
-            sigma_intervals = gaussian / interval
-            
-            y = gaussian_filter(obj['dz'],sigma_intervals)
-        else: y = obj['dz']
-        
-        if  normalize_elev:
-            e = obj['e'].astype(N.float32)
-            x = (e-N.min(e))/(N.max(e)-N.min(e))
-        else:
-            x = obj['e']
-        #print 'x',x
-        
-        newys.append(N.interp(newx,x,y,N.nan,N.nan))
-
-    newys2 = N.c_[newys]
-
-    print type(newys2)
-    print newys2.size
+EXAMPLE USE WITH GetLambData AND partition_dataset:
     
-    if label != None: label = "%s N=%s" % (label,len(s))
-    newys3 = N.ma.masked_array(newys2,N.isnan(newys2))
-
-    if robust == False:
-        std = N.ma.std(newys3,axis=0)
-        mean = N.ma.mean(newys3,axis=0)
-    elif robust == True:
-        print 'robust'
-        std = mad(newys3,axis=1,normalized=True)
-        mean = N.ma.median(newys3,axis=0)
-    elif robust == 'both':
-        std = N.ma.std(newys3,axis=0)
-        mean = N.ma.mean(newys3,axis=0)
-        madn = mad(newys3,axis=1,normalized=True)
-        median = N.ma.median(newys3,axis=0)
-    #print '*********************'
-    #print newx
-    #if  normalize_elev:
-        #newx = (newx-N.min(newx))/(N.max(newx)-N.min(newx))
-
-    #print newx
-    if not dontplot:    
-        if robust != 'both':
-            axes.plot(newx,mean,color+'-',linewidth=2,label=label)
-            axes.fill_between(newx,mean+std,mean-std,alpha=alphafill,color= color,lw=0)
-            
-        else:
-            axes.plot(newx,mean,color+'-',linewidth=2,label=label)
-            axes.fill_between(newx,mean+std,mean-std,alpha=alphafill,color= color,lw=0)
-            axes.plot(newx,median,color+'--',linewidth=2,label='Median')
-            axes.plot(newx,mean+madn,color+'-',linewidth=0.5,label='MADn')
-            axes.plot(newx,mean-madn,color+'-',linewidth=0.5)
-    #axes.fill_between(newx,,mean-std,alpha=alphafill,color= color,lw=0)
-        
-        if plotindiviudallines:
+    surveyeddata = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True)
+    surveyeddata.fix_terminus()
+    surveyeddata.normalize_elevation()
+    surveyeddata.calc_dz_stats()
     
-            for ys in newys:axes.plot(newx,ys,color+'-',alpha=0.4,linewidth=0.5)
+    types = ["gltype=0","gltype=1","gltype=2"]
+    lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
+    print extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False)  
     
-    if robust == False:return newx,newys3,mean,std
-    elif robust == True:return newx,newys3,median,madn
-    elif robust == 'both':return newx,newys3,mean,std,median,madn
-            
-def fix_terminus(lambobj,slope=-0.05,error=1):
-
-    if type(lambobj) == dict:
-        cumulative = N.cumsum(lambobj['numdata'])
-        
-        for i,val in enumerate(cumulative):
-            if val != 0:break
+    Here the user is first retreiving all of the surveyed glacier data in one lambobject to be applied those glaciers individually as surveyeddata.
     
-        lambobj['dz'] = N.where(cumulative == 0, N.nan,lambobj['dz'])
-        lambobj['dz25'] = N.where(cumulative == 0, N.nan,lambobj['dz25'])
-        lambobj['dz75'] = N.where(cumulative == 0, N.nan,lambobj['dz75'])
+    Next the user is partitioning the dataset as done in larsen etal by glacier type, we excluding surgers and outlier glaciers because we don't want
+        those glaciers to affect the mean profile within the group that will be used for extrapolation.
         
-        deriv = N.ediff1d(lambobj['dz'])#ediff1d
-        #print lambobj.dz
-        #print deriv
-        
-        for i,bn in enumerate(deriv):
-            if not N.isnan(bn):
-                if bn < slope: 
-                    lambobj['dz'][i]=N.nan
-                else:break
-        nanreplace = N.isnan(lambobj['dz'])
-        lambobj['dz'] = N.where(nanreplace, lambobj['dz'][i],lambobj['dz'])
-        lambobj['dz25'] = N.where(nanreplace, lambobj['dz25'][i]-error,lambobj['dz25'])
-        lambobj['dz75'] = N.where(nanreplace, lambobj['dz75'][i]+error,lambobj['dz75'])
-        return deriv
-    else:
-        cumulative = N.cumsum(lambobj.numdata)
-        
-        for i,val in enumerate(cumulative):
-            if val != 0:break
-    
-        lambobj.dz = N.where(cumulative == 0, N.nan,lambobj.dz)
-        lambobj.dz25 = N.where(cumulative == 0, N.nan,lambobj.dz25)
-        lambobj.dz75 = N.where(cumulative == 0, N.nan,lambobj.dz75)
-        
-        deriv = N.ediff1d(lambobj.dz)#ediff1d
-        #print lambobj.dz
-        #print deriv
-        
-        for i,bn in enumerate(deriv):
-            if not N.isnan(bn):
-                if bn < slope: 
-                    lambobj.dz[i]=N.nan
-                else:break
-        nanreplace = N.isnan(lambobj.dz)
-        lambobj.dz = N.where(nanreplace, lambobj.dz[i],lambobj.dz)
-        lambobj.dz25 = N.where(nanreplace, lambobj.dz25[i]-error,lambobj.dz25)
-        lambobj.dz75 = N.where(nanreplace, lambobj.dz75[i ]+error,lambobj.dz75)
-        return deriv
-        
-def extrapolateOLD(groups,selections,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, resulttable='resultsauto',export_shp=None,export_csv=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
-    import __init__ as init
-
-    for grp in groups:
-        if not hasattr(grp,'interquartile_rng'):raise "Run statistics on groups first"
-    
-    #print 'connecting'    
-    conn,cur = ConnectDb()
-    cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
-    conn.commit()
-
-    #print 'creating'
-    cur.execute("CREATE TABLE %s (gid serial PRIMARY KEY,curveid real,normbins real,mean double precision,median real,std real,sem real,quadsum real, iqr real,stdlow real, stdhigh real, q1 real,q3 real,perc5 real,perc95 real);" % extrap_tbl)
-    conn.commit()
-
-    glimsidlist = "','".join(list(itertools.chain.from_iterable([grp.glimsid for grp in groups])))
-    
-    
-    for grpid,grp in enumerate(groups):
-    
-        #gltype = grp.gltype
-
-        #if not all([x == gltype[0] for x in gltype]): 
-            #raise "All in group are not same glacier type."
-        #else:
-            #gltype = gltype[0]
-        
-        stdlow = grp.dzs_mean-grp.dzs_std
-        stdhigh = grp.dzs_mean+grp.dzs_std
-
-
-        for i in xrange(len(grp.norme)):
-            #print "INSERT INTO extrapolation_curves (normbins,gltype,mean,median,std,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%1.0f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (grp.norme[i],gltype[j],grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i])
-            cur.execute("INSERT INTO %s (curveid,normbins,mean,median,std,sem,quadsum,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%4.2f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (extrap_tbl,grpid,grp.norme[i],grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.dzs_sem[i],grp.quadsum[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i]))
-            if abs(grp.norme[i]-0.99)<0.0001:cur.execute("INSERT INTO %s (curveid,normbins,mean,median,std,sem,quadsum,iqr,stdlow,stdhigh,q1,q3,perc5,perc95) VALUES ('%4.2f','%4.2f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f','%7.4f')" % (extrap_tbl,grpid,1.,grp.dzs_mean[i],grp.dzs_median[i],grp.dzs_std[i],grp.dzs_sem[i],grp.quadsum[i],grp.interquartile_rng[i],stdlow[i],stdhigh[i],grp.quartile_1[i],grp.quartile_3[i],grp.percentile_5[i],grp.percentile_95[i]))
-            conn.commit()
-            
-    cur.execute("DROP INDEX IF EXISTS curveid_index;")
-    cur.execute("CREATE INDEX curveid_index ON %s (curveid);" % extrap_tbl)
-    
-    for grpid,grp in enumerate(groups):
-        #print 'groupid',grpid    
-        #glimsidlist =[item for sublist in [grp.glimsid for grp in groups] for item in sublist]
-        #glimsidlist="','".join(grp.glimsid)
-        #print [item for sublist in [grp.name for grp in groups] for item in sublist]
-        #print glimsidlist
-        if selections[grpid]!="":selections[grpid]="WHERE %s" % selections[grpid]
-        if grpid==0:intotbl = "INTO %s" % resulttable
-        else:intotbl=""
-        
-        bigselect = """
-    SELECT ergi.name,eb.glimsid,ergi.gltype,ergi.surge,ergi.area as glarea, eb.bins,eb.normbins,eb.area,ext.mean,ext.median,ext.std,
-    ext.sem::double precision,ext.quadsum::double precision,ext.iqr::double precision,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,eb.curveid as ebcurve,ext.curveid,
-    eb.area*ext.mean::double precision as volchange,false as surveyed, ext.sem::double precision as error, eb.albersgeom %s 
-    FROM ergibins3 as eb 
-    INNER JOIN (SELECT ergi.*,gltype.surge FROM ergi LEFT JOIN gltype on ergi.glimsid=gltype.glimsid %s) as ergi on eb.glimsid=ergi.glimsid
-    LEFT JOIN (SELECT * FROM %s WHERE curveid=%s) as ext on eb.normbins::real=ext.normbins
-    
-    WHERE ergi.glimsid NOT IN ('%s')
-    
-    UNION
-    
-    SELECT ergi.name,eb.glimsid,ergi.gltype,ergi.surge,ergi.area as glarea, eb.bins,eb.normbins,eb.area,ext.mean,ext.median,ext.std,
-    ext.sem::double precision,ext.quadsum::double precision,ext.iqr::double precision,ext.stdlow,ext.stdhigh,ext.q1,ext.q3,ext.perc5,ext.perc95,eb.curveid as ebcurve,ext.curveid,
-    eb.area*ext.mean::double precision as volchange,true as surveyed, ext.quadsum::double precision as error, eb.albersgeom 
-    FROM ergibins3 AS eb 
-    INNER JOIN (SELECT ergi.*,gltype.surge FROM ergi LEFT JOIN gltype on ergi.glimsid=gltype.glimsid %s) as ergi on eb.glimsid=ergi.glimsid
-    LEFT JOIN (SELECT * FROM %s WHERE curveid=%s) as ext on eb.normbins::real=ext.normbins
-    LEFT JOIN gltype on ergi.glimsid=gltype.glimsid
-    WHERE ergi.glimsid IN ('%s') """  % (intotbl, selections[grpid], extrap_tbl,grpid,glimsidlist, selections[grpid], extrap_tbl,grpid,glimsidlist)
-        if grpid==0:
-            finalselect = bigselect
-        else:
-            finalselect="%s \nUNION \n%s" % (finalselect,bigselect)
-    finalselect="%s;" % finalselect
-    print finalselect
-    #print bigselect
-    import time
-    start_time = time.time()
-
-    print "Producing Results Table!"
-    sys.stdout.flush()
-    cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
-    cur.execute(finalselect)
-    conn.commit()
-    cur.execute("CREATE INDEX glimid_index ON %s (glimsid);" % resulttable)
-    cur.execute("CREATE INDEX normbins_index ON %s (normbins);" % resulttable)
-    
-    #MULTIPLYING THE ERROR FOR TIDEWATERS BY 2 TO ACCOUNT FOR THE POOR DISTRIBUTION (THIS IS DISCUSSED IN THE PAPER)
-    cur.execute("UPDATE %s SET error = error*1.5 WHERE gltype='1' AND surveyed='f';" % resulttable)
-    
-    
-    cur.execute("ALTER TABLE resultsauto add column singl_std real DEFAULT NULL;")   # this is to put the stdev of the xpts for surveyed glaciers rather than the std dev of the group
-    conn.commit()
-    print "Joining ergibins3 took",time.time() - start_time,'seconds'
-    sys.stdout.flush()
-    #cur.execute("VACUUM ANALYZE;")
-     
-    #INSERTING SURVEYED GLACIER DATA
-    if type(insert_surveyed_data) != NoneType:
-    #s2 = GetLambData(verbose=False,longest_interval=True,interval_min=min_interval,by_column=True,as_object=True)
-    #s2.fix_terminus()
-    #s2.normalize_elevation()
-    #s2.calc_dz_stats()
-        print "Insert surveyed Data"
-        sys.stdout.flush()
-        start_time = time.time()
-    #LOOPING THROUGH EACH GLIMS ID
-        for i in xrange(len(insert_surveyed_data.normdz)):
-            #print "SELECT normbins::real FROM %s WHERE glimsid = '%s'" % (resulttable,insert_surveyed_data.glimsid[i])
-            data = GetSqlData2("SELECT normbins::real FROM %s WHERE glimsid = '%s'" % (resulttable,insert_surveyed_data.glimsid[i]))['normbins']
-            #if insert_surveyed_data.glimsid[i]=='G212334E61307N':print data
-            uninormbins = N.unique(data)
-            indices = (uninormbins*100).astype(int)
-            indices = N.where(indices > 99,99,indices)
-            indices = N.where(indices < 0,0,indices)
-            
-            #print i,indices
-            #sys.stdout.flush()
-            #insert_surveyed_data.normdz[i]
-            #not every glacier will have a bin for every normalized elevation band from 0.01 to 0.99 so we are selecting the survey data for only those bands that the 
-            #binned rgi has
-            surveyed = [insert_surveyed_data.normdz[i][indc] for indc in indices]
-            #print surveyed
-            #print len(surveyed)
-            normstd = [insert_surveyed_data.survIQRs[i][indc]*0.7413 for indc in indices]
-            #normstd = [insert_surveyed_data.survIQRs[i][indc] for indc in indices]
-            
-            for j in xrange(len(surveyed)):
-                
-                #if insert_surveyed_data.glimsid[i]=='G212334E61307N':print       "UPDATE %s SET mean = %s,surveyed='t' WHERE glimsid='%s' AND normbins = %s;" % (resulttable,surveyed[j],insert_surveyed_data.glimsid[i],uninormbins[j])
-                cur.execute("UPDATE %s SET mean = %s,surveyed='t',singl_std=%s WHERE glimsid='%s' AND normbins = %s;" % (resulttable,surveyed[j],normstd[j],insert_surveyed_data.glimsid[i],uninormbins[j]))
-            
-            conn.commit()
-        print "Insert surveyed Data took",time.time() - start_time,'seconds'
-        sys.stdout.flush()
-        print "here * %s *" % export_shp
-    if type(export_shp) != NoneType:
-        start_time = time.time()
-        print "Exporting To Shpfile"
-        sys.stdout.flush()
-        os.system("%s -f %s -h localhost altimetry %s" % (init.pgsql2shppath,export_shp,resulttable))
-        print "Exporting To Shpfile took",time.time() - start_time,'seconds'
-    if type(export_csv) != NoneType:
-        print "Exporting to CSV"
-        sys.stdout.flush()                                                                                                                                    
-        #THESE ONES ARE OLD AND INCORRECT SAVING JUST IN CASE
-        #cur.execute("COPY (SELECT surveyed, SUM(area)/1000000. as area,        SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY surveyed ORDER BY surveyed) TO '%s/final_results_divd_surveyed.csv' DELIMITER ',' CSV HEADER;" %               (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        #cur.execute("COPY (SELECT gltype, surveyed,SUM(area)/1000000. as area, SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype,surveyed ORDER BY gltype,surveyed) TO '%s/final_results_divd_surveyed_gltype.csv' DELIMITER ',' CSV HEADER;" % (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        #cur.execute("COPY (SELECT gltype, SUM(area)/1000000. as area,          SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype ORDER BY gltype) TO '%s/final_results_divd_gltype.csv' DELIMITER ',' CSV HEADER;" %                   (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csvpe)))
-        #cur.execute("COPY (SELECT SUM(area)/1000000. as area,                  SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s) TO '%s/final_results_one_group.csv' DELIMITER ',' CSV HEADER;" %                                     (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        cur.execute("COPY (SELECT surveyed,         SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed ORDER BY surveyed) TO '%s/final_results_divd_surveyed.csv' DELIMITER ',' CSV HEADER;" %                      (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        cur.execute("COPY (SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed ORDER BY gltype,surveyed) TO '%s/final_results_divd_surveyed_gltype.csv' DELIMITER ',' CSV HEADER;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        cur.execute("COPY (SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype ORDER BY gltype) TO '%s/final_results_divd_gltype.csv' DELIMITER ',' CSV HEADER;" %                            (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        cur.execute("COPY (SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s) TO '%s/final_results_one_group.csv' DELIMITER ',' CSV HEADER;" %                                                              (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable,os.path.dirname(export_csv)))
-        
-        files = ['final_results_one_group.csv','final_results_divd_gltype.csv','final_results_divd_surveyed_gltype.csv','final_results_divd_surveyed.csv'] 
-        out = open(export_csv,'w')
-        
-        
-        for ope in files:
-            f = open("%s/%s" % (os.path.dirname(export_csv),ope),'r')
-            for i in f:
-                i=re.sub('^0,','Land,',i)
-                i=re.sub('^1,','Tidewater,',i)
-                i=re.sub('^2,','Lake,',i)
-                out.write(i)
-            os.remove("%s/%s" % (os.path.dirname(export_csv,ope)))
-            out.write('\n\n')
-        out.close() 
-        
-        
-        
-        if not keep_postgres_tbls:
-            cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
-            cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
-            conn.commit()
-        cur.close()
-        conn.close()
-
-    else:
-        print "Summing up totals" 
-        sys.stdout.flush()
-        start_time = time.time()
-        out = {}
-        #THESE ARE OLD AND BAD
-        #out['bysurveyed'] =    GetSqlData2("SELECT surveyed, SUM(area)/1000000.::real as area,        SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY surveyed;" %        (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
-        #out['bytype_survey'] = GetSqlData2("SELECT gltype, surveyed,SUM(area)/1000000. as area, SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
-        #out['bytype'] =        GetSqlData2("SELECT gltype, SUM(area)/1000000. as area,          SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
-        #out['all'] =           GetSqlData2("SELECT SUM(area)/1000000. as area,                  SUM(mean*area)/1000000000.*%5.3f as totalGt, SUM(mean*area)/SUM(area)*%5.3f as totalkgm2, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/1000000000. as errGt, SUM(((error*%5.3f)^2+%5.3f^2+%5.3f^2)^0.5*area)/SUM(area) as errkgm2 FROM %s;" %                          (density,density,density,density_err,acrossgl_err,density,density_err,acrossgl_err,resulttable))
-        
-        out['bysurveyed'] =    GetSqlData2("SELECT surveyed,         SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed;" %         (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
-        out['bytype_survey'] = GetSqlData2("SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
-        out['bytype'] =        GetSqlData2("SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
-        out['all'] =           GetSqlData2("SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s;" %                          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,resulttable))
-
-        
-        print "Summing up totals",time.time() - start_time,'seconds'
-        sys.stdout.flush()
-        #print out['bytype_survey']
-        
-        if not keep_postgres_tbls:
-            cur.execute("DROP TABLE IF EXISTS %s;" % resulttable)
-            cur.execute("DROP TABLE IF EXISTS %s;" % extrap_tbl)
-            conn.commit()
-        cur.close()
-        conn.close()
-        return out
-        
-        
-def extrapolate(user,groups,selections,insert_surveyed_data=None, extrap_tbl='extrapolation_curves',keep_postgres_tbls=False, export_shp=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
+    Lastly, we run extrapolate on those groups, this applies the group extrapolation to each group but we use the where statements include exceptions 
+    like surgers. To reiterate, we ran partition_dataset on land/lake/tide w/o surgers.  But we apply those same curves to land/lake/tides but to all glaciers
+    including surgers.  Here, ther user has then inserted the surveyed data so surveyed glacier mass balance is included on an individual
+    glacier basis.  Lastly here we drop the output_table, please do this as the output table is several Gb. 
+         
+====================================================================================================        
+"""
     import __init__ as init
 
     #INSURING STATS HAVE BEEN RUN ON GROUP FIRST
@@ -2275,12 +1526,12 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, extrap_tbl='ex
             mean=grp.dzs_mean[i],median=grp.dzs_median[i],std=grp.dzs_std[i],sem=grp.dzs_sem[i],iqr=grp.interquartile_rng[i],
             q1=grp.quartile_1[i],q3=grp.quartile_3[i],perc5=grp.percentile_5[i],perc95=grp.percentile_95[i],surveyed="'f'",error=grp.dzs_sem[i],
             table=tablename,norme=grp.norme[i],where=where))
-            if i<4: print """UPDATE {table} \nSET (mean,median,std,sem,iqr,q1,q3,perc5,perc95,surveyed,error) = 
-    ({mean},{median},{std},{sem},{iqr},{q1},{q3},{perc5},{perc95},{surveyed},{error})
-    WHERE {where};\n""".format(
-            mean=grp.dzs_mean[i],median=grp.dzs_median[i],std=grp.dzs_std[i],sem=grp.dzs_sem[i],iqr=grp.interquartile_rng[i],
-            q1=grp.quartile_1[i],q3=grp.quartile_3[i],perc5=grp.percentile_5[i],perc95=grp.percentile_95[i],surveyed="'f'",error=grp.dzs_sem[i],
-            table=tablename,norme=grp.norme[i],where=where)
+    #        if i<4: print """UPDATE {table} \nSET (mean,median,std,sem,iqr,q1,q3,perc5,perc95,surveyed,error) = 
+    #({mean},{median},{std},{sem},{iqr},{q1},{q3},{perc5},{perc95},{surveyed},{error})
+    #WHERE {where};\n""".format(
+    #        mean=grp.dzs_mean[i],median=grp.dzs_median[i],std=grp.dzs_std[i],sem=grp.dzs_sem[i],iqr=grp.interquartile_rng[i],
+    #        q1=grp.quartile_1[i],q3=grp.quartile_3[i],perc5=grp.percentile_5[i],perc95=grp.percentile_95[i],surveyed="'f'",error=grp.dzs_sem[i],
+    #        table=tablename,norme=grp.norme[i],where=where)
             
             #IF SURVEYED GLACIER DATA IS PROVIDED WE NEED TO INSERT THE GROUP SURVEYED GLACIER ERROR
             #THIS IS SEPARATE FROM THE UNCERTAINTY FOR INDIVIDUAL GLACIERS
@@ -2291,8 +1542,8 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, extrap_tbl='ex
                 where = " AND ".join(wheres)
                 
                 #INSERTING SURVEYED UNCERTAINTY AS THAT UNCERTAINTY IS FOR THE GROUP AND NOT THE INDIVIDUAL GLACIERS THUS EASIEST TO DO HERE
-                if i<4:print """UPDATE {table} \nSET (quadsum,error) = ({quadsum},{quadsum})
-    WHERE {where};\n\n""".format(quadsum=grp.quadsum[i],table=tablename,where=where)
+    #            if i<4:print """UPDATE {table} \nSET (quadsum,error) = ({quadsum},{quadsum})
+    #WHERE {where};\n\n""".format(quadsum=grp.quadsum[i],table=tablename,where=where)
                 buffer2.write("""UPDATE {table} \nSET (quadsum,error) = ({quadsum},{quadsum}) WHERE {where};\n""".format(quadsum=grp.quadsum[i],table=tablename,where=where))
             
     buffer2.write("COMMIT;\n")
@@ -2307,7 +1558,7 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, extrap_tbl='ex
     buffer=None
     
 
-        #######################################################
+    #######################################################
     buffer = StringIO.StringIO()
     buffer.write("BEGIN;\n")
 
@@ -2329,10 +1580,10 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, extrap_tbl='ex
     ({mean},{surveyed},{singl_std}) WHERE {where};\n""".format(
                 mean=insert_surveyed_data.normdz[eid][i],quadsum=insert_surveyed_data.quadsum[i],surveyed="'t'",error=insert_surveyed_data.quadsum[i],
                 table=tablename,where=where,singl_std=insert_surveyed_data.survIQRs[eid][i]))
-                if i <4:print """UPDATE {table} \nSET (mean,surveyed,singl_std) = 
-    ({mean},{surveyed},{singl_std}) WHERE {where};\n""".format(
-                    mean=insert_surveyed_data.normdz[eid][i],quadsum=insert_surveyed_data.quadsum[i],surveyed="'t'",error=insert_surveyed_data.quadsum[i],
-                    table=tablename,where=where,singl_std=insert_surveyed_data.survIQRs[eid][i])
+    #            if i <4:print """UPDATE {table} \nSET (mean,surveyed,singl_std) = 
+    #({mean},{surveyed},{singl_std}) WHERE {where};\n""".format(
+    #                mean=insert_surveyed_data.normdz[eid][i],quadsum=insert_surveyed_data.quadsum[i],surveyed="'t'",error=insert_surveyed_data.quadsum[i],
+    #                table=tablename,where=where,singl_std=insert_surveyed_data.survIQRs[eid][i])
             
     buffer.write("COMMIT;\n")
     buffer.seek(0)
@@ -2378,76 +1629,132 @@ def glaciertype_to_gltype(indata):
         elif re.search('lake',i):out.append(2)
     return out
     
-def full_plot_extrapolation_curves(data,samples_lim=None,err_lim=None,title=None):
+def full_plot_extrapolation_curves(data,samples_lim=None,err_lim=None,color=None):
+    """====================================================================================================
+Altimetry.Altimetry.full_plot_extrapolation_curves
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+    Plot statistics for a lambobject. This is the function used in Figures S8-S10     
+
+Returns: 
+    A matplotlib figure class
+         
+ARGUMENT:
+    data            A lamb object with at least normalize_elevation() and calc_dz_stats run.
+                    
+KEYWORD ARGUMENTS:
+    samples_lim     Set the y_axis limit of number of samples plot
+        
+    err_lim         Set the y_axis limit for the error plot (right axis). 
+    color           color of the lines in the top plot
+====================================================================================================        
+"""
+    #INPUT VARIABLES
     alphafill = 0.1
+    if type(color)==NoneType: color='k'
+    
+    #FIGURE SETTINGS 
     fig = plt.figure(figsize=[6,10])
-    ax = fig.add_axes([0.11,0.56,0.8,0.4])
-    #ax.set_title('Surface Elevation Change: %s Glaciers' % outroot[i])
+    ax = fig.add_axes([0.11,0.59,0.79,0.4])
+    plt.rc("font", **{"sans-serif": ["Arial"],"size": 12})
     
-    ax.set_ylabel('Balance (m w.e./yr)')
-    ax.set_ylim([-10,3])
-    ax.set_xlim([0,1])
-    
-    
-    for dz in data.normdz:ax.plot(data.norme,dz,'-k',linewidth=0.5,alpha=0.4)
+    #TOP PLOT
+    for dz in data.normdz:ax.plot(data.norme,dz,'-',color=color,linewidth=0.5,alpha=0.5)
     ax.plot(data.norme,data.dzs_mean,'-k',linewidth=2,label='Mean')
     ax.plot(data.norme,data.dzs_median,'--k',linewidth=2,label='Median')
-    #ax.plot(data.norme,data.dzs_median-data.dzs_madn,'--k')
-    #ax.plot(data.norme,data.dzs_median+data.dzs_madn,'--k')
-    ax.plot(data.norme,data.dzs_mean+data.dzs_sem,'-r',linewidth=0.7,label='Unsurvyed\nErr')
+
+    ax.plot(data.norme,data.dzs_mean+data.dzs_sem,'-r',linewidth=0.7,label= "Unsurveyed Error Estimate")
     ax.plot(data.norme,data.dzs_mean-data.dzs_sem,'-r',linewidth=0.7)
-    ax.fill_between(data.norme,data.dzs_mean+data.dzs_std,data.dzs_mean-data.dzs_std,alpha=alphafill,color= 'black',lw=0)
+    ax.fill_between(data.norme,data.dzs_mean+data.dzs_std,data.dzs_mean-data.dzs_std,alpha=alphafill,color= 'black',lw=0.01)
+    
+    #LIMITS, LABELS, LEGEND
+    ax.set_ylabel("Elevation Change (m w. eq. yr"+"$\mathregular{^{-1})}$")
+    ax.set_ylim([-10,3])
+    ax.set_xlim([0,1])
+    ax.set_ylim([-10,12])    
     plt.legend(loc=4,fontsize=11)
     
-    sort = N.argsort([dz[2] for dz in data.normdz])
+    #BOTTOM PLOT
+    ax2 = fig.add_axes([0.11,0.13,0.79,0.15])
+    plt.rc("font", **{"sans-serif": ["Arial"],"size": 12})
     
-    #print data.name[sort[0]],data.name[sort[1]],data.name[sort[2]],data.name[sort[0]],data.name[sort[-2]],data.name[sort[-1]]
-    #print data.name[sort[0]], data.norme[25], data.normdz[sort[0]][25]
-    ax.annotate(data.name[sort[0]], xy=(data.norme[25], data.normdz[sort[0]][25]), xytext=(0.4, -8),arrowprops=dict(facecolor='black', headwidth=6, width=0.4,shrink=0.02))
-    ax.annotate(data.name[sort[1]], xy=(data.norme[20], data.normdz[sort[1]][20]), xytext=(0.4, -6),arrowprops=dict(facecolor='black', headwidth=6, width=0.4,shrink=0.02))
-    ax.annotate(data.name[sort[2]], xy=(data.norme[15], data.normdz[sort[2]][15]), xytext=(0.4, -9.),arrowprops=dict(facecolor='black', headwidth=6, width=0.4,shrink=0.02))
-    ax.annotate(data.name[sort[3]], xy=(data.norme[10], data.normdz[sort[3]][10]), xytext=(0.4, -7),arrowprops=dict(facecolor='black', headwidth=6, width=0.4,shrink=0.02))
-    ax.annotate(data.name[sort[-2]], xy=(data.norme[10], data.normdz[sort[-1]][10]), xytext=(0.4, 2.3),arrowprops=dict(facecolor='black', headwidth=6, width=0.4,shrink=0.02))
-    ax.annotate(data.name[sort[-1]], xy=(data.norme[15], data.normdz[sort[-2]][15]), xytext=(0.4, 1.8),arrowprops=dict(facecolor='black', headwidth=6, width=0.4,shrink=0.02))
-    
-    ax2 = fig.add_axes([0.11,0.35,0.8,0.18])
+    #PLOTTING 
     ax2.plot(data.norme,N.zeros(data.norme.size),'-',color='grey')
-    ax2.plot(data.norme,N.array(data.kurtosis)-3,'g-',label='Excess Kurtosis')     
-    ax2.plot(data.norme,N.array(data.skew),'r-',label='Skewness')
+    ax2.plot(data.norme,N.array(data.kurtosis)-3,'k--',label='Excess Kurtosis',lw=1.5)     
+    ax2.plot(data.norme,N.array(data.skew),'k-',label='Skewness',lw=1.2)
+    
+    #LIMITS, LABELS, LEGEND
     ax2.set_ylim([-6,6])
-    ax2.set_ylabel('Test Statistic')
-    plt.legend(loc='upper center', bbox_to_anchor=(0.24, -0.1),ncol=1, fancybox=True, shadow=True,fontsize=11)
+    ax2.set_ylabel('Test Statistic',color='k')
+    ax2.set_xlabel('Normalized Elevation')
+    plt.legend(loc='upper center', bbox_to_anchor=(0.24, -0.3),ncol=1, fancybox=False, shadow=False,fontsize=11)
+    
+    #ADDING SECOND Y AXIS AND PLOTTING
     ax3 = ax2.twinx()
     ax3.plot(data.norme,N.zeros(data.norme.size)+0.05,'-',color='grey')
-    ax3.plot(data.norme,N.sqrt(N.array(data.normalp)),'k-',label='Shapiro-Wilk')
-    #ax3.plot(data.norme,N.array(normal2),'k-',label='DiAgostino')
-    ax3.set_xlabel('Normalized Elevation')
-    ax3.set_ylabel('p-values')
+    ax3.plot(data.norme,N.sqrt(N.array(data.normalp)),'r-',label='Shapiro-Wilk')
+
+    #FORMATTING THAT AXIS, LIMITS AND LEGEND
+    for t in ax3.get_yticklabels():t.set_color('r')
+    ax3.set_ylabel('p-values',color='r')
     ax3.set_ylim([0,1.1])
-    plt.legend(loc='upper center', bbox_to_anchor=(0.78, -0.1),ncol=2, fancybox=True, shadow=True,fontsize=11) 
+    plt.legend(loc='upper center', bbox_to_anchor=(0.78, -0.3),ncol=2, fancybox=False, shadow=False,fontsize=11) 
     
-    ax4 = fig.add_axes([0.11,0.11,0.8,0.15])      
-    #print data.dzs_n
+          
+    #MIDDLE PLOT
+    ax4 = fig.add_axes([0.11,0.38,0.79,0.18])
     ax4.plot(data.norme,data.dzs_n,'k',label='n Samples')
-    ax4.set_xlabel('Normalized Elevation')
+
+    #LIMITS LABELS, LEGEND
     ax4.set_ylabel('N Samples')
     ax4.set_ylim([0,N.max(data.dzs_n)*1.1])
-    plt.legend(loc='upper center',bbox_to_anchor=(0.24, -0.3),ncol=1, fancybox=True, shadow=True,fontsize=11) 
-    ax5 = ax4.twinx()
-    ax5.plot(data.norme,data.quadsum,'r-',label='Surveyed Err.')
-    ax5.plot(data.norme,data.dzs_sem,'b-',label='Unsurveyed Err.')
-    ax5.set_ylim(err_lim)
     ax4.set_ylim(samples_lim)
-    ax.set_title(title)
-    plt.legend(loc='upper center',bbox_to_anchor=(0.78, -0.3),ncol=1, fancybox=True, shadow=True,fontsize=11) 
-    plt.show()
-
-    return ax,ax2,ax3,ax4,ax5
+    plt.legend(loc='upper center',bbox_to_anchor=(0.24, -0.1),ncol=1, fancybox=False, shadow=False,fontsize=11) 
     
-
-
+    #ADDING SECOND Y AXIS AND PLOTTING
+    ax5 = ax4.twinx()
+    ax5.plot(data.norme,data.quadsum,'b-',label='Surveyed Error Estimate')
+    ax5.plot(data.norme,data.dzs_sem,'r-',label='Unsurveyed Error Estimate')
+    ax5.set_ylim(err_lim)
+    ax5.set_ylabel("Uncertainty (m w. eq. yr"+"$\mathregular{^{-1})}$")
+    
+    #LEGEND
+    plt.legend(loc='upper center',bbox_to_anchor=(0.78, -0.1),ncol=1, fancybox=False, shadow=False,fontsize=11) 
+    
+    #ANNOTATING PLOTS WITH ABCs
+    ax.text(0.03,0.94,"A",fontsize=15, fontweight='bold',transform=ax.transAxes)
+    ax4.text(0.03,0.83,"B",fontsize=15, fontweight='bold',transform=ax4.transAxes)
+    ax2.text(0.03,0.83,"C",fontsize=15, fontweight='bold',transform=ax2.transAxes)
+ 
+    return fig
+    
 def create_extrapolation_table(user=None,schema=None,table=None):
+    """====================================================================================================
+Altimetry.Altimetry.create_extrapolation_table
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+    This function creates an extrapolation table and controls the names of the tables such that they will 
+    not be confused between users. The point here is that altimetryextrapolation table is reserved for 
+    results in Larsen et al. 2015.  As users play with the data and other extrapolations they can rerun
+    the same code to create new tables that should not be confused.  This code makes a table called:
+        alt_results_[user]X  where X is 1 if this user has no existing table with their name and will
+        incrementally increase if the user has tables already written.
 
+Returns: 
+    The new created table name as a string.
+         
+ARGUMENTS:
+    user            A username to be inserted into the table  (REQUIRED)
+                    
+
+    schema          Set the schema. (DEFAULT='public')
+        
+    table           The user can force another table name here but this tablename will not be 
+                    recognized by remove_extrap_tables.
+====================================================================================================        
+"""
     if user==None:raise "ERROR: Must Specify User"
     
     if schema==None: schema = 'public'
@@ -2458,8 +1765,7 @@ def create_extrapolation_table(user=None,schema=None,table=None):
         if n==None:table = "alt_result_{user}1".format(user=user)
         else: 
             number = N.array(n['substring']).astype(int).max()+1
-            table = "alt_result_{user}{number}".format(user=user,number=number)
-        
+            table = "alt_result_{user}{number}".format(user=user,number=number)        
     
     sql = """
 SELECT b.ergibinsid as resultid,b.ergiid,b.area,e.area as glarea,b.albersgeom,b.bins,b.normbins,e.gltype,e.surge,e.name,e.region INTO {schema}.{table} FROM ergibins2 as b INNER JOIN ergi_mat_view AS e ON b.ergiid=e.ergiid;
@@ -2547,7 +1853,24 @@ COMMENT ON COLUMN altimetryextrapolation.region IS 'Region defined by Larsen et 
     return table
 
 def remove_extrap_tables(user,tables=None,schemas=None):
-    
+    """====================================================================================================
+Altimetry.Altimetry.remove_extrap_tables
+Evan Burgess 2015-04-22
+====================================================================================================
+Purpose:
+    This function removes extrapolation table/s created by the specified user and the naming convention
+    created by create_extrapolation_table.  If just a user is specified, this removes all tables by
+    that user.  However, a list of tables as strings can be input to remove specfic tables only.  
+
+         
+ARGUMENTS:
+    user            A username for which their tables are to be deleted  (REQUIRED)
+
+    schema          Set the schema. This can be left blank as the script can figure that out.
+        
+    tables          A list of specific tables to remove. 
+====================================================================================================        
+"""
     #LOOKING FOR TABLES BY THIS USER
     if type(tables)==NoneType:
         #print "SELECT table_schema, substring(table_name FROM '(alt_result_{user}\d+)') as t FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user)
@@ -2592,3 +1915,58 @@ DROP TABLE {schema}.{table};
     cur.execute(buffer.read())
     conn.commit()
     cur.close()
+
+def destable(table):
+    """Prints the full comment fields of a table.  Just specify the table name.
+    """
+
+    def hard_return(a,length = 70):
+    
+        if len(a)<length:return a
+        
+        hard = len(a)/length
+        cut = []
+        last=0
+        for m in re.finditer(r"\s+", a):
+            pos = int(m.start() % length)
+            if pos < last:cut.append(m.end())
+            last=pos
+            
+        out = []
+        last = 0
+        for i in cut:
+            out.append(a[last:i])
+            last=i
+        out.append(a[last:])
+        return "\n                |                 |  ".join(out)
+        
+    table = 'lamb'
+    oid=GetSqlData2("""SELECT c.oid
+    FROM pg_catalog.pg_class c
+        LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname ~ '^(%s)$'
+    AND pg_catalog.pg_table_is_visible(c.oid);
+    """ % table)['oid'][0]
+    
+    
+    des = GetSqlData2("""SELECT a.attname,
+    pg_catalog.format_type(a.atttypid, a.atttypmod),
+    pg_catalog.col_description(a.attrelid, a.attnum)
+    FROM pg_catalog.pg_attribute a
+    WHERE a.attrelid = '%s' AND a.attnum > 0 AND NOT a.attisdropped
+    ORDER BY a.attnum;""" % oid)
+    
+    tdes = GetSqlData2("""SELECT description FROM pg_description JOIN pg_class ON pg_description.objoid = pg_class.oid
+    WHERE relname = '%s' AND objsubid=0;""" % table)['description'][0]
+    
+    
+    
+    comment = [hard_return(d)for d in des['col_description']]
+
+    print "Table Name: %s" % table
+    print "Table Description: \n\n\t%s\n\n" % (tdes)
+    print "     Column     |    Data Type    |           Description"
+    print "----------------+-----------------+---------------------------------"
+    for t,f,c in zip(des['attname'],des['format_type'],comment):
+        print "%15s | %15s | %s" % (t,f,c)
+    
