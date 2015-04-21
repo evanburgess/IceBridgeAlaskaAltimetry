@@ -16,6 +16,7 @@ from types import *
 import sys
 import ppygis
 import StringIO
+from osgeo import osr
 
 import ConfigParser
 from glob import glob
@@ -24,7 +25,7 @@ cfg = ConfigParser.ConfigParser()
 cfg.read(os.path.dirname(__file__)+'/setup.cfg')
 sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
-from Altimetry.Interface import *
+from Altimetry import *
 
 
 def UpdateAltimetryDb():
@@ -918,151 +919,71 @@ overwrite           Bypass user prompt to confirm overwrite of column
             print 'Skipped gid because glacier is too small', gid
             print 'image shape',img.shape
 
-def importXpt(xptfile,verbose=False):
-    #verbose = True
-    #xptfile = '/Users/igswahwsmcevan/Altimetry/xpd/Gulkana.1995.137.2000.153.selected.xpt'
-    conn,cur = ConnectDb()
+def importXptfiles(filelist):
+    for fle in filelist:importXpt(fle)
+
+def importXpt(xptfile):
+    def doy_to_datetime(doy,year):return dtm.date(year, 1, 1) + dtm.timedelta(doy - 1)
     
- 
     #FINDING DATES OF FILE AND GLACIER NAME
-    if verbose:print "FINDING DATES OF FILE AND GLACIER NAME"
+    
     try:
         name,yr1,doy1,yr2,doy2 = re.findall('(\w+)\.(\d{4})\.(\d{3})\.(\d{4})\.(\d{3})\.selected',os.path.basename(xptfile))[0]
     except:
-        print "Something is wrong with the filename: "+xptfile
-        return
+        raise "Could not understand filename, this is supposed to read a file with a name like: Allen.2000.238.2010.236.selected.xpt"
+    date1 = doy_to_datetime(int(doy1),int(yr1))
+    date2 = doy_to_datetime(int(doy2),int(yr2))
     
-    yr1 = int(yr1)
-    yr2 = int(yr2)
-    doy1 = int(doy1)
-    doy2 = int(doy2)
-    
-    date1 = doy_to_datetime(doy1,yr1)
-    date2 = doy_to_datetime(doy2,yr2)
-    
-    #FINDING UTM ZONE
-    if verbose:print "FINDING UTM ZONE"
+    #RETRIEVING ERGIID
     try:
-        zone = re.findall('zone(\d{1,2})',glob.glob(cfg.get('Section One', 'analysispath')+name+'/shp/*zone*')[0],re.IGNORECASE)[0]
-    except: 
-        print "Could not identify zone for "+xptfile
-        return
-    
-    #GLID AND LAMBID
-    if verbose:print "GLID AND LAMBID"
-    #print "select gid from glnames where name = '"+name+"';"
-    #print 'here1'
-    #sys.stdout.flush()
-    try:
-        glid = GetSqlData("select gid from glnames where name = '"+name+"';")[0]['gid']
+        ergiid = GetSqlData2("SELECT ergiid FROM lamb_ergi_lookup WHERE name='{name}'".format(name=name))['ergiid'][0]
+        lambid = GetSqlData2("SELECT lambid FROM lamb2 WHERE ergiid = {ergiid} AND date1= '{date1}' AND date2='{date2}'".format(ergiid=ergiid,date1=date1,date2=date2))['lambid'][0]
     except:
-        print xptfile+" does not have a glacier entry in glnames!"
+        print "ERROR failed to find an entry in lamb for this xpt file %s" % xptfile
         return
-        
-    #print "select gid from lamb where glid = "+str(glid)+" and date1 = '"+date1.isoformat()+"' and date2 = '"+date2.isoformat()+"';"
+    
+    zone = GetSqlData2("SELECT utmZone FROM lamb_ergi_lookup WHERE name='{name}'".format(name=name))['utmzone'][0]
+    
+    #READING TEXT FILE
     try:
-        lambid = GetSqlData("select gid from lamb where glid = "+str(glid)+" and date1 = '"+date1.isoformat()+"' and date2 = '"+date2.isoformat()+"';")[0]['gid']
+        x,y,z1,z2,dz = N.loadtxt(xptfile,usecols=[0,1,2,3,4],unpack=True)
     except:
-        lambid = 'NULL'
-        print "     WARNING: "+xptfile+" does not have an associated lambfile!"
-        return
-        
-    if verbose:
-        t = GetSqlData('select glnames.name as name,lamb.date1 as date1,lamb.date2 as date2 from lamb inner join glnames on lamb.glid=glnames.gid where lamb.gid ='+str(lambid)+';')[0]
-        print t['name'],t['date1'],t['date2'],xptfile
-    #READING FILE INTO ARRAYS
-    #print 'here2'
-    #sys.stdout.flush()     
-    if verbose:print "load xptfile"
-    time1 = time.time()
-
-    x,y,z1,z2,dz = N.loadtxt(xptfile,usecols=[0,1,2,3,4],unpack=True)
-    time2 = time.time()
-
-    
-    #print temp.size
-    
-    #f = open(xptfile)
-    #x=N.array([],dtype=N.float64)
-    #y=N.array([],dtype=N.float64)
-    #z1=N.array([],dtype=N.float64)
-    #z2=N.array([],dtype=N.float64)
-    #dz=N.array([],dtype=N.float64)
-    #
-    #for line in f:
-    #    (x_add,y_add,z1_add,z2_add,dz_add,trash,trash,trash,trash,trash) = [float(field) for field in line.split()]
-    #    x = N.append(x,x_add)
-    #    y = N.append(y,y_add)
-    #    z1 = N.append(z1,z1_add)
-    #    z2 = N.append(z2,z2_add)
-    #    dz = N.append(dz,dz_add)
-    
-    if verbose:print 'Reprojecting'
-    #sys.stdout.flush()      
-    #REFERENCE SYSTEM OF GRID
+        raise "ERROR: Could not find or load file %s" % xptfile
+            
+    #REPROJECTING LOCATION OF CROSSING POINTS 
+        #REFERENCE SYSTEM OF GRID
     old_cs = osr.SpatialReference()
-    old_cs.ImportFromProj4('+proj=utm +zone=%s +ellps=WGS84 +datum=WGS84 +units=m +no_defs' % zone)
+    old_cs.ImportFromProj4('+proj=utm +zone=%i +ellps=WGS84 +datum=WGS84 +units=m +no_defs' % zone)
     
-    #WGS84 REFERNCE SYSTEM 
-    wgs84_wkt = """GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]"""
-    new_cs = osr.SpatialReference()
-    new_cs.ImportFromWkt(wgs84_wkt)
+    ##WGS84 REFERNCE SYSTEM 
+    #albers_wkt = """PROJCS["NAD83 / Alaska Albers",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6269"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4269"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],PROJECTION["Albers_Conic_Equal_Area"],PARAMETER["standard_parallel_1",55],PARAMETER["standard_parallel_2",65],PARAMETER["latitude_of_center",50],PARAMETER["longitude_of_center",-154],PARAMETER["false_easting",0],PARAMETER["false_northing",0],AUTHORITY["EPSG","3338"],AXIS["X",EAST],AXIS["Y",NORTH]]"""
+    #albers = osr.SpatialReference()
+    #albers.ImportFromWkt(albers_wkt)
     
     #ALBERS REFERNCE SYSTEM 
-    #albers_cs = osr.SpatialReference()
-    #albers_cs.ImportFromProj4("""+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=WGS84 +units=m +no_defs """)
-        
-    # create a transform object to convert between coordinate systems
-    transformtowgs = osr.CoordinateTransformation(old_cs, new_cs) 
-    #transformtoalbers = osr.CoordinateTransformation(old_cs, albers_cs)
-    coordswgs=[]
-    #coordsalb=[]
+    albers_cs = osr.SpatialReference()
+    albers_cs.ImportFromProj4("""+proj=aea +lat_1=55 +lat_2=65 +lat_0=50 +lon_0=-154 +x_0=0 +y_0=0 +ellps=GRS80 +datum=WGS84 +units=m +no_defs """)
     
+    #PROJECTING COORDINATE TO ALASKA ALBERS 
+    transformtoalbers = osr.CoordinateTransformation(old_cs, albers_cs)
+    coordsalb=[]
     
-    sys.stdout.flush() 
     for i in xrange(len(x)):
-        coordswgs.append(transformtowgs.TransformPoint(x[i],y[i]))
-        #coordsalb.append(transformtoalbers.TransformPoint(x[i],y[i]))
-
-    #lon,lat,trash = zip(*coords)
+        xy = transformtoalbers.TransformPoint(x[i],y[i])
+        coordsalb.append(ppygis.Point(xy[0],xy[1],srid=3338).write_ewkb())
     
-    time3 = time.time()
-    
-    
-    #values = str(glid)+','+str(lambid)+",'"+date1.isoformat()+"','"+date2.isoformat()+"'"
-    #values2 = #',"+z1+'::real,'+str(z2[0])+'::real,'+str(dz[0])+'::real,POINT'+re.sub(', 0.0','',str(coords[0]))
-    #print "INSERT INTO xpt (glid, lambid,date1,date2) VALUES ("+values+");"
-    #cur.execute("INSERT INTO xpt (glid, lambid,date1,date2) VALUES ("+values+");")
-    
-    if verbose:print 'Updating database'
-    #sys.stdout.flush()
-    
-
-    maxgid = GetSqlData2("SELECT max(gid) FROM xpts;")['max'][0]
-    if type(maxgid) == NoneType:maxgid=-1
-    print type(maxgid)
-    #print "%s\t%s\t%s\t%s\t%s\t%s\n" % (i,lambid,z1[i],z2[i],dz[i],ppygis.Point(coordswgs[i][0],coordswgs[i][1]).write_ewkb()) 
+    #WRITTING THE INFO TO A BUFFER FOR IMPORT INTO DB
     buffer = StringIO.StringIO()
-    for i in xrange(len(coordswgs)):
-        #print "%s\t%s\t%s\t%s\t%s\t%s\n" % (i,lambid,z1[i],z2[i],dz[i],ppygis.Point(coordswgs[i][0],coordswgs[i][1]).write_ewkb())
-        buffer.write("%s\t%s\t%s\t%s\t%s\t%s\n" % ((i+maxgid+1),lambid,z1[i],z2[i],dz[i],ppygis.Point(coordswgs[i][0],coordswgs[i][1]).write_ewkb()))
-    buffer.seek(0)   
-    cur.copy_from(buffer, 'xpts')   
-
-    #for i in xrange(len(coordswgs)):
-    #    cur.execute("INSERT INTO xpts (lambid,z1,z2,dz,geog) VALUES (%s,%s,%s,%s,ST_GeogFromText('POINT(%10.7f %10.7f)'));" % (lambid,z1[i],z2[i],dz[i],coordswgs[i][0],coordswgs[i][1]))
-        #cur.execute(insertxpts2)
-        #if i % 50000 == 0: print i
-    #print 'here6'
-    #sys.stdout.flush() 
-    ####AddGeometryColumn********
-    time4 = time.time()
-    if verbose:print "Readfile", time2-time1
-    if verbose:print "Reproject", time3-time2
-    if verbose:print "Insert to table", time4-time3
+    for z1t,z2t,dzt,c in zip(z1,z2,dz,coordsalb):buffer.write("{z1t}\t{z2t}\t{dzt}\t{c}\t{lambid}\n".format(z1t=z1t,z2t=z2t,dzt=dzt,c=c,lambid=lambid))
+    buffer.seek(0)
     
+    alreadydone = GetSqlData2("SELECT COUNT(xptid) AS c FROM xpts2 WHERE lambid={lambid};".format(lambid=lambid))['c'][0]
     
+    if alreadydone != 0: print "This file has already been loaded."
+    
+    conn,cur = ConnectDb()
+    cur.copy_from(buffer, 'xpts2', columns=('z1', 'z2','dz','albersgeom','lambid'))
     conn.commit()
+    buffer=None
     cur.close()
-    conn.close()
-                                
+                
